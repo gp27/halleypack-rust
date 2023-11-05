@@ -7,14 +7,11 @@ use super::{
     super::common::{
         hpk::{HalleyPack, HpkAsset, HpkSection, HpkSectionUnpackable, Parsable, Writable},
         hpk_parse::parse_hpk,
+        primitives::{h_hashmap, h_pos_size, h_string},
         primitives::{wh_hashmap, wh_pos_size, wh_string},
-        {
-            config::h_confignode_with_position,
-            primitives::{h_hashmap, h_i32, h_pos_size, h_string},
-        },
     },
-    animation::{animation_parser, Animation},
-    spritesheet::{spritesheet_parser, SpriteSheet},
+    animation::Animation,
+    spritesheet::SpriteSheet,
 };
 use cookie_factory::{
     bytes::{le_i32 as w_le_i32, le_u32 as w_le_u32},

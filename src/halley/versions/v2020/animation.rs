@@ -1,3 +1,7 @@
+use super::super::common::{
+    hpk::Parsable,
+    primitives::{h_bool, h_string},
+};
 use nom::{
     combinator::map,
     multi::length_count,
@@ -6,10 +10,6 @@ use nom::{
     IResult,
 };
 use serde::{Deserialize, Serialize};
-
-use crate::halley::versions::common::hpk::Parsable;
-
-use super::super::common::primitives::{h_bool, h_string};
 
 #[derive(Serialize, Deserialize)]
 pub struct Animation {
@@ -22,27 +22,23 @@ pub struct Animation {
 
 impl Parsable for Animation {
     fn parse(i: &[u8]) -> IResult<&[u8], Self> {
-        animation_parser(i).map(|(i, a)| (i, a))
+        map(
+            tuple((
+                h_string,
+                h_string,
+                h_string,
+                length_count(le_u32, Sequence::parse),
+                length_count(le_u32, Direction::parse),
+            )),
+            |(name, spritesheet, material, sequences, directions)| Animation {
+                name,
+                spritesheet,
+                material,
+                sequences,
+                directions,
+            },
+        )(i)
     }
-}
-
-pub fn animation_parser(i: &[u8]) -> IResult<&[u8], Animation> {
-    map(
-        tuple((
-            h_string,
-            h_string,
-            h_string,
-            length_count(le_u32, sequence_parser),
-            length_count(le_u32, direction_parser),
-        )),
-        |(name, spritesheet, material, sequences, directions)| Animation {
-            name,
-            spritesheet,
-            material,
-            sequences,
-            directions,
-        },
-    )(i)
 }
 
 #[derive(Serialize, Deserialize)]
@@ -52,15 +48,17 @@ pub struct Frame {
     pub duration: i32,
 }
 
-pub fn frame_parser(i: &[u8]) -> IResult<&[u8], Frame> {
-    map(
-        tuple((h_string, le_i32, le_i32)),
-        |(imagename, frame, duration)| Frame {
-            imagename,
-            frame,
-            duration,
-        },
-    )(i)
+impl Parsable for Frame {
+    fn parse(i: &[u8]) -> IResult<&[u8], Self> {
+        map(
+            tuple((h_string, le_i32, le_i32)),
+            |(imagename, frame, duration)| Frame {
+                imagename,
+                frame,
+                duration,
+            },
+        )(i)
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -71,16 +69,18 @@ pub struct Sequence {
     pub no_flip: bool,
 }
 
-pub fn sequence_parser(i: &[u8]) -> IResult<&[u8], Sequence> {
-    map(
-        tuple((length_count(le_u32, frame_parser), h_string, h_bool, h_bool)),
-        |(frames, name, is_loop, no_flip)| Sequence {
-            frames,
-            name,
-            is_loop,
-            no_flip,
-        },
-    )(i)
+impl Parsable for Sequence {
+    fn parse(i: &[u8]) -> IResult<&[u8], Self> {
+        map(
+            tuple((length_count(le_u32, Frame::parse), h_string, h_bool, h_bool)),
+            |(frames, name, is_loop, no_flip)| Sequence {
+                frames,
+                name,
+                is_loop,
+                no_flip,
+            },
+        )(i)
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -91,14 +91,16 @@ pub struct Direction {
     pub flip: bool,
 }
 
-pub fn direction_parser(i: &[u8]) -> IResult<&[u8], Direction> {
-    map(
-        tuple((h_string, h_string, le_i32, h_bool)),
-        |(name, filename, id, flip)| Direction {
-            name,
-            filename,
-            id,
-            flip,
-        },
-    )(i)
+impl Parsable for Direction {
+    fn parse(i: &[u8]) -> IResult<&[u8], Self> {
+        map(
+            tuple((h_string, h_string, le_i32, h_bool)),
+            |(name, filename, id, flip)| Direction {
+                name,
+                filename,
+                id,
+                flip,
+            },
+        )(i)
+    }
 }
