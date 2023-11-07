@@ -3,9 +3,16 @@ name = "wgpack"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+cli = ["clap"]
+
+[[bin]]
+name = "wgpack"
+required-features = ["cli"]
+
 [dependencies]
+clap = { version = "4.4.7", features = ["derive"], optional = true }
 base64 = "0.21.4"
-clap = { version = "4.4.7", features = ["derive"] }
 cookie-factory = "0.3.2"
 derivative = "2.2.0"
 derive-new = "0.5.9"

@@ -72,7 +72,6 @@ enum Commands {
 
 fn main() {
     let args = Args::parse();
-    //println!("{:?}", args);
 
     match args.command {
         Commands::Unpack {
