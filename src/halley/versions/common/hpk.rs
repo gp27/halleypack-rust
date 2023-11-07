@@ -68,7 +68,7 @@ impl HalleyPack for HalleyPackData {
 
 pub trait HpkSection
 where
-    Self: HpkSectionUnpackable + std::fmt::Debug + Writable,
+    Self: HpkSectionUnpackable + Writable + Debug,
 {
     fn new(asset_type: u32) -> Self
     where
@@ -84,7 +84,7 @@ where
     );
 }
 
-pub trait HpkAsset: Writable {
+pub trait HpkAsset: Writable + Debug {
     fn name(&self) -> &String;
     fn pos(&self) -> usize;
     fn size(&self) -> usize;
