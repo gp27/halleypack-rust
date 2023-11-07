@@ -1,13 +1,14 @@
 use crate::halley::versions::common::hpk::{HalleyPack, HalleyPackData, HpkSection};
 use std::{
     collections::HashMap,
+    ffi::{OsStr, OsString},
     fs::{self, create_dir_all, File},
     io::{BufReader, Read, Write},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 static SECTION_PREFIX: &str = "section_";
-static PROPERTIES_FILE_EXT: &str = "pro.json";
+static PROPERTIES_FILE_EXT: &str = ".pro.json";
 
 type SectionProps = HashMap<String, u32>;
 
@@ -35,16 +36,16 @@ pub fn unpack_halley_pk(pack: &dyn HalleyPack, path: &Path) -> Result<(), std::i
 
         let u_ext = section.get_unknown_file_type_ending();
         for (j, asset) in section.assets().into_iter().enumerate() {
-            let name = asset.name();
             let ext = section.get_file_name_extension(j);
-            let pathified_name = pathify(name, u_ext, ext);
-            let filename = section_path.join(&pathified_name);
-            write_property_file(&asset.get_serialized_properties(), &filename);
+            let name = asset.name();
+            let filename = format!("{}{}", pathify(name, u_ext), ext);
+            let file_path = section_path.join(&filename);
+            write_property_file(&asset.get_serialized_properties(), &file_path);
 
             let data = pack.get_asset_data(asset);
             let data = section.modify_file_on_unpack(&data);
 
-            let mut file = File::create(&filename).unwrap();
+            let mut file = File::create(&file_path).unwrap();
             file.write_all(&data).unwrap();
         }
     }
@@ -93,28 +94,34 @@ pub fn pack_halley_pk<Section: HpkSection + 'static>(
 
         let paths = glob::glob(
             section_filename
-                .join("**/*")
-                .with_extension(PROPERTIES_FILE_EXT)
+                .join(format!("**/*{}", PROPERTIES_FILE_EXT))
                 .to_str()
                 .unwrap(),
         )
         .unwrap();
 
+        let mut j = 0;
+
         paths.for_each(|entry| {
             let entry = entry.unwrap();
-            let filename = entry.to_str().unwrap();
-            let filename = Path::new(filename.strip_suffix(PROPERTIES_FILE_EXT).unwrap());
+            let entry_path = entry.to_str().unwrap();
 
-            let file_props_data = read_property_file(filename).unwrap();
-            let file_data = fs::read(path).unwrap();
-            let relative_path = filename.strip_prefix(&section_filename).unwrap();
+            let u_ext = section.get_unknown_file_type_ending();
+            let ext = ""; //section.get_file_name_extension(j);
 
-            section.add_asset(
-                &mut pack,
-                relative_path.to_str().unwrap().to_string(),
-                &file_props_data,
-                &file_data,
+            let file_path = Path::new(entry_path.strip_suffix(PROPERTIES_FILE_EXT).unwrap());
+
+            let file_props_data = read_property_file(file_path).unwrap();
+            let file_data = fs::read(file_path).unwrap();
+            let relative_path = file_path.strip_prefix(&section_filename).unwrap();
+            let name = unpathify(
+                relative_path.to_str().unwrap().strip_suffix(ext).unwrap(),
+                u_ext,
             );
+
+            section.add_asset(&mut pack, name, &file_props_data, &file_data);
+
+            j += 1;
         });
         pack.add_section(Box::new(section));
 
@@ -124,7 +131,7 @@ pub fn pack_halley_pk<Section: HpkSection + 'static>(
 }
 
 fn write_property_file(properties_data: &[u8], filename: &Path) -> Option<std::io::Error> {
-    let prop_filename = filename.with_extension(PROPERTIES_FILE_EXT);
+    let prop_filename = append_to_path(filename, PROPERTIES_FILE_EXT);
     if !prop_filename.parent()?.exists() {
         create_dir_all(prop_filename.parent()?).unwrap();
     }
@@ -135,7 +142,7 @@ fn write_property_file(properties_data: &[u8], filename: &Path) -> Option<std::i
 }
 
 fn read_property_file(filename: &Path) -> Result<Vec<u8>, std::io::Error> {
-    let prop_filename = filename.with_extension(PROPERTIES_FILE_EXT);
+    let prop_filename = append_to_path(filename, PROPERTIES_FILE_EXT);
     let file = File::open(prop_filename)?;
     let mut buf = vec![];
     BufReader::new(file).read_to_end(&mut buf);
@@ -150,22 +157,26 @@ fn read_property_file(filename: &Path) -> Result<Vec<u8>, std::io::Error> {
 //     serde_json::from_reader(BufReader::new(file))
 // }
 
-fn pathify(name: &str, u_ext: &str, ext: &str) -> String {
-    let mut filename = if !name.contains('.') {
+fn pathify(name: &str, u_ext: &str) -> String {
+    let filename = if !name.contains('.') {
         format!("{}{}", name, u_ext).to_string()
     } else {
         name.to_string()
     };
-    filename = filename.replace(":", "___..___");
-
-    format!("{}{}", filename, ext)
+    filename.replace(":", "___..___")
 }
 
-fn unpathify(name: &str, ext: &str) -> String {
+fn unpathify(name: &str, u_ext: &str) -> String {
     let mut filename = name.to_string();
     filename = filename.replace("___..___", ":");
-    if filename.ends_with(ext) {
-        filename = filename[0..filename.len() - ext.len()].to_string();
+    if filename.ends_with(u_ext) {
+        filename = filename[0..filename.len() - u_ext.len()].to_string();
     }
     filename
+}
+
+fn append_to_path(p: impl Into<OsString>, s: impl AsRef<OsStr>) -> PathBuf {
+    let mut p = p.into();
+    p.push(s);
+    p.into()
 }
