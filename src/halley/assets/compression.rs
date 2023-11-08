@@ -35,7 +35,9 @@ pub fn decompress(data: &[u8], compression: &str) -> Vec<u8> {
 pub fn compress(data: &[u8], compression: &str) -> Vec<u8> {
     match compression {
         "deflate" => {
-            let mut encoded = Vec::new();
+            let len = data.len() as u64;
+            let mut encoded = len.to_le_bytes().to_vec();
+
             ZlibEncoder::new(data, flate2::Compression::default())
                 .read_to_end(&mut encoded)
                 .unwrap();
