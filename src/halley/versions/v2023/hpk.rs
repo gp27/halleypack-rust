@@ -1,9 +1,3 @@
-use crate::halley::versions::common::{
-    hpk::Writable,
-    hpk_parse::parse_hpk,
-    primitives::{wh_pos_size, wh_string},
-};
-
 use super::{
     super::common::{
         hpk::{HalleyPack, HpkAsset, HpkSection, HpkSectionUnpackable, Parsable},
@@ -15,6 +9,11 @@ use super::{
     animation::animation_parser,
     hlif::hlif_parser,
     spritesheet::spritesheet_parser,
+};
+use crate::halley::versions::common::{
+    hpk::Writable,
+    hpk_parse::parse_hpk,
+    primitives::{wh_pos_size, wh_string},
 };
 use cookie_factory::{
     bytes::{le_i32 as w_le_i32, le_u32 as w_le_u32},
@@ -30,6 +29,7 @@ use nom::{
     IResult,
 };
 use num_derive::{FromPrimitive, ToPrimitive};
+use std::path::Path;
 
 // pub trait HalleyPackV2023: HalleyPack + ParsablePack {
 //     fn parse<'a>(i: &'a [u8], secret: &str) -> IResult<&'a [u8], Box<dyn HalleyPack>> {
@@ -104,25 +104,22 @@ impl HpkSection for HpkSectionV2023 {
             .collect()
     }
 
-    fn add_asset(
-        &mut self,
-        pack: &mut dyn HalleyPack,
-        name: String,
-        props_data: &[u8],
-        asset_data: &[u8],
-    ) {
-        let props_data = std::str::from_utf8(props_data).unwrap();
-        let props: ConfigNode = toml::from_str(props_data).unwrap();
+    fn add_asset(&mut self, pack: &mut dyn HalleyPack, path: &Path, relative_path: &Path) {
+        let (config, data) =
+            super::super::super::assets::property_file::read_with_file_data::<ConfigNode>(path)
+                .unwrap();
+
+        let name = self.get_asset_name(relative_path.to_str().unwrap(), get_compression(&config));
 
         let mut asset = HpkAssetV2023 {
             name,
             pos: 0,
             size: 0,
-            config: props,
+            config,
         };
 
         let compression = asset.get_asset_compression();
-        let (pos, size) = pack.add_data(asset_data, compression);
+        let (pos, size) = pack.add_data(&data, compression);
 
         asset.set_pos_size(pos, size);
 
@@ -140,16 +137,6 @@ impl HpkSectionUnpackable for HpkSectionV2023 {
             AssetTypeV2023::AUDIOOBJECT => ".audioobject.json",
             AssetTypeV2023::AUDIOEVENT => ".audioevent.json",
             _ => ".ukn",
-        }
-    }
-
-    fn get_file_name_extension(&self, asset_index: usize) -> &str {
-        match self.assets[asset_index].get_compression() {
-            Some(compression) => match compression.as_str() {
-                "png" => ".png",
-                _ => "",
-            },
-            None => "",
         }
     }
 
@@ -241,8 +228,8 @@ impl HpkAsset for HpkAssetV2023 {
         self.size = size;
     }
 
-    fn get_serialized_properties(&self) -> Vec<u8> {
-        toml::to_string_pretty(&self.config).unwrap().into_bytes()
+    fn serialize_properties(&self, filename: &std::path::Path) -> Option<std::io::Error> {
+        super::super::super::assets::property_file::write(filename, &self.config).err()
     }
 
     fn get_asset_compression(&self) -> Option<String> {
@@ -256,13 +243,7 @@ impl HpkAsset for HpkAssetV2023 {
     }
 
     fn get_compression(&self) -> Option<String> {
-        match &self.config {
-            ConfigNode::Map(map) => match map.get("compression") {
-                Some(ConfigNode::String(s)) => Some(s.to_owned()),
-                _ => None,
-            },
-            _ => None,
-        }
+        get_compression(&self.config)
     }
 }
 
@@ -288,5 +269,15 @@ impl Writable for HpkAssetV2023 {
             wh_confignode(&self.config),
         ));
         Box::new(writer)
+    }
+}
+
+fn get_compression(config: &ConfigNode) -> Option<String> {
+    match config {
+        ConfigNode::Map(map) => match map.get("compression") {
+            Some(ConfigNode::String(s)) => Some(s.to_owned()),
+            _ => None,
+        },
+        _ => None,
     }
 }

@@ -27,7 +27,7 @@ use nom::{
     IResult,
 };
 use num_derive::{FromPrimitive, ToPrimitive};
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
 // pub trait HalleyPackV2020: ParsablePack {
 //     fn parse<'a>(i: &'a [u8], secret: &str) -> IResult<&'a [u8], Box<dyn HalleyPack>> {
@@ -94,25 +94,25 @@ impl HpkSection for HpkSectionV2020 {
             .collect()
     }
 
-    fn add_asset(
-        &mut self,
-        pack: &mut dyn HalleyPack,
-        name: String,
-        props_data: &[u8],
-        asset_data: &[u8],
-    ) {
-        let props_data = std::str::from_utf8(props_data).unwrap();
-        let props: HpkPropertiesV2020 = toml::from_str(props_data).unwrap();
+    fn add_asset(&mut self, pack: &mut dyn HalleyPack, path: &Path, relative_path: &Path) {
+        let (properties, data) = super::super::super::assets::property_file::read_with_file_data::<
+            HpkPropertiesV2020,
+        >(path)
+        .unwrap();
+        let name = self.get_asset_name(
+            relative_path.to_str().unwrap(),
+            properties.get("compression").map(|s| s.to_owned()),
+        );
 
         let mut asset = HpkAssetV2020 {
             name,
             pos: 0,
             size: 0,
-            properties: props,
+            properties,
         };
 
         let compression = asset.get_asset_compression();
-        let (pos, size) = pack.add_data(asset_data, compression);
+        let (pos, size) = pack.add_data(&data, compression);
 
         asset.set_pos_size(pos, size);
 
@@ -130,16 +130,6 @@ impl HpkSectionUnpackable for HpkSectionV2020 {
         }
     }
 
-    fn get_file_name_extension(&self, asset_index: usize) -> &str {
-        match self.assets[asset_index].get_compression() {
-            Some(compression) => match compression.as_str() {
-                "png" => ".png",
-                _ => "",
-            },
-            None => "",
-        }
-    }
-
     fn modify_file_on_unpack<'a>(&self, i: &'a [u8]) -> Vec<u8> {
         match self.asset_type {
             AssetTypeV2020::SPRITESHEET => unpack_transform::<SpriteSheet>(i),
@@ -152,6 +142,8 @@ impl HpkSectionUnpackable for HpkSectionV2020 {
     fn modify_file_on_repack(&self, i: &[u8]) -> Vec<u8> {
         match self.asset_type {
             AssetTypeV2020::SPRITESHEET => pack_transform::<SpriteSheet>(i),
+            // AssetTypeV2020::ANIMATION => pack_transform::<Animation>(i),
+            // AssetTypeV2020::CONFIG => pack_transform::<ConfigFile>(i),
             _ => i.to_owned(),
         }
     }
@@ -193,6 +185,17 @@ where
 }
 
 impl HpkAsset for HpkAssetV2020 {
+    // fn read(path: &Path) -> Self {
+    //     let (properties, data) =
+    //         super::super::super::assets::property_file::read_with_file_data(path).unwrap();
+    //     HpkAssetV2020 {
+    //         name: path.file_stem().unwrap().to_str().unwrap().to_owned(),
+    //         pos: 0,
+    //         size: 0,
+    //         properties,
+    //     }
+    // }
+
     fn name(&self) -> &String {
         &self.name
     }
@@ -210,10 +213,8 @@ impl HpkAsset for HpkAssetV2020 {
         self.size = size;
     }
 
-    fn get_serialized_properties(&self) -> Vec<u8> {
-        toml::to_string_pretty(&self.properties)
-            .unwrap()
-            .into_bytes()
+    fn serialize_properties(&self, filename: &std::path::Path) -> Option<std::io::Error> {
+        super::super::super::assets::property_file::write(filename, &self.properties).err()
     }
 
     fn get_asset_compression(&self) -> Option<String> {
