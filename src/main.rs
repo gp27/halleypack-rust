@@ -1,17 +1,8 @@
-mod halley;
 mod steam;
 
 //use halley::pack::write_halley_pk;
-use crate::halley::{
-    assets::unpack::unpack_halley_pk,
-    versions::{v2020::hpk::halley_pack_v2020_parse, v2023::hpk::halley_pack_v2023_parse},
-};
 use clap::{Parser, Subcommand};
 use cookie_factory::WriteContext;
-use halley::{
-    assets::unpack::pack_halley_pk,
-    versions::{common::hpk::HalleyPack, v2020::hpk::HpkSectionV2020, v2023::hpk::HpkSectionV2023},
-};
 use std::{
     fs,
     io::{BufWriter, Write},
@@ -19,6 +10,14 @@ use std::{
     vec,
 };
 use steam::find_wargroove_assets_folder;
+use wgpack::halley::{
+    assets::unpack::{pack_halley_pk, unpack_halley_pk},
+    versions::{
+        common::hpk::HalleyPack,
+        v2020::hpk::{HalleyPackV2020, HpkSectionV2020},
+        v2023::hpk::{HalleyPackV2023, HpkSectionV2023},
+    },
+};
 
 //static SECRET: &str = "+Ohzep4z06NuKguNbFRz3w==";
 static SECRET: &str = "K09oemVwNHowNk51S2d1Tg==";
@@ -110,9 +109,9 @@ fn unpack_wg(filename: String, game: Option<String>) -> Box<dyn HalleyPack> {
     let data = fs::read(&path).unwrap();
 
     let pack = if filename.contains("Wargroove 2/") || game == Some("wg2".to_string()) {
-        halley_pack_v2023_parse(&data, SECRET).unwrap().1
+        HalleyPackV2023::load(path, SECRET).unwrap()
     } else if filename.contains("Wargroove/") || game == Some("wg".to_string()) {
-        halley_pack_v2020_parse(&data, SECRET).unwrap().1
+        HalleyPackV2020::load(path, SECRET).unwrap()
     } else {
         panic!("Unknown game");
     };

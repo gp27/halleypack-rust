@@ -11,8 +11,7 @@ use super::{
     spritesheet::spritesheet_parser,
 };
 use crate::halley::versions::common::{
-    hpk::Writable,
-    hpk_parse::parse_hpk,
+    hpk::{HalleyPackData, Writable},
     primitives::{wh_pos_size, wh_string},
 };
 use cookie_factory::{
@@ -31,19 +30,12 @@ use nom::{
 use num_derive::{FromPrimitive, ToPrimitive};
 use std::path::Path;
 
-// pub trait HalleyPackV2023: HalleyPack + ParsablePack {
-//     fn parse<'a>(i: &'a [u8], secret: &str) -> IResult<&'a [u8], Box<dyn HalleyPack>> {
-//         let (_, pack) = parse_hpk::<HpkSectionV2023>(i, secret).unwrap();
-//         Ok((i, Box::new(pack)))
-//     }
-// }
+pub struct HalleyPackV2023 {}
 
-pub fn halley_pack_v2023_parse<'a>(
-    i: &'a [u8],
-    secret: &str,
-) -> IResult<&'a [u8], Box<dyn HalleyPack>> {
-    let (_, pack) = parse_hpk::<HpkSectionV2023>(i, secret).unwrap();
-    Ok((i, Box::new(pack)))
+impl HalleyPackV2023 {
+    pub fn load(path: &Path, secret: &str) -> Result<Box<dyn HalleyPack>, std::io::Error> {
+        HalleyPackData::load::<HpkSectionV2023>(path, secret)
+    }
 }
 
 #[derive(Debug, FromPrimitive, ToPrimitive)]

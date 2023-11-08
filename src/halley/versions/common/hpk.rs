@@ -1,3 +1,4 @@
+use super::hpk_parse::parse_hpk;
 use crate::halley::assets::{compression, utils::pathify, utils::unpathify};
 use cookie_factory::{SerializeFn, WriteContext};
 use derivative::Derivative;
@@ -6,11 +7,16 @@ use nom::IResult;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, path::Path};
 
-pub trait HalleyPackParser {
-    fn parse<'a>(i: &'a [u8], secret: &str) -> IResult<&'a [u8], &'a dyn HalleyPack>;
-}
-
 pub trait HalleyPack: Writable + Debug {
+    fn load<Section>(path: &Path, secret: &str) -> Result<Box<dyn HalleyPack>, std::io::Error>
+    where
+        Self: Sized,
+        Section: Parsable + HpkSection + 'static,
+    {
+        let data = std::fs::read(&path).unwrap();
+        let (_, pack) = parse_hpk::<Section>(&data, secret).unwrap();
+        Ok(Box::new(pack))
+    }
     fn sections(&self) -> &Vec<Box<dyn HpkSection>>;
     fn add_section(&mut self, section: Box<dyn HpkSection>);
     fn get_asset_data(&self, asset: Box<&dyn HpkAsset>) -> Vec<u8>;

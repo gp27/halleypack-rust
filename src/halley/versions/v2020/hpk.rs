@@ -1,12 +1,11 @@
 use crate::halley::versions::common::{
     config::ConfigFile,
-    hpk::{pack_transform, unpack_transform},
+    hpk::{pack_transform, unpack_transform, HalleyPackData},
 };
 
 use super::{
     super::common::{
         hpk::{HalleyPack, HpkAsset, HpkSection, HpkSectionUnpackable, Parsable, Writable},
-        hpk_parse::parse_hpk,
         primitives::{h_hashmap, h_pos_size, h_string},
         primitives::{wh_hashmap, wh_pos_size, wh_string},
     },
@@ -29,19 +28,12 @@ use nom::{
 use num_derive::{FromPrimitive, ToPrimitive};
 use std::{collections::HashMap, path::Path};
 
-// pub trait HalleyPackV2020: ParsablePack {
-//     fn parse<'a>(i: &'a [u8], secret: &str) -> IResult<&'a [u8], Box<dyn HalleyPack>> {
-//         let (_, pack) = parse_hpk::<HpkSectionV2020>(i, secret).unwrap();
-//         Ok((i, Box::new(pack)))
-//     }
-// }
+pub struct HalleyPackV2020 {}
 
-pub fn halley_pack_v2020_parse<'a>(
-    i: &'a [u8],
-    secret: &str,
-) -> IResult<&'a [u8], Box<dyn HalleyPack>> {
-    let (_, pack) = parse_hpk::<HpkSectionV2020>(i, secret).unwrap();
-    Ok((i, Box::new(pack)))
+impl HalleyPackV2020 {
+    pub fn load(path: &Path, secret: &str) -> Result<Box<dyn HalleyPack>, std::io::Error> {
+        HalleyPackData::load::<HpkSectionV2020>(path, secret)
+    }
 }
 
 #[derive(Debug, FromPrimitive, ToPrimitive)]
