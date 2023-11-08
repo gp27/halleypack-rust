@@ -6,9 +6,10 @@ use std::{
     io::{BufReader, Read, Write},
     path::{Path, PathBuf},
 };
+use walkdir::WalkDir;
 
 static SECTION_PREFIX: &str = "section_";
-static PROPERTIES_FILE_EXT: &str = ".pro.json";
+static PROPERTIES_FILE_EXT: &str = ".pro.toml";
 
 type SectionProps = HashMap<String, u32>;
 
@@ -27,11 +28,11 @@ pub fn unpack_halley_pk(pack: &dyn HalleyPack, path: &Path) -> Result<(), std::i
         let mut map: SectionProps = HashMap::new();
         map.insert("asset_type".to_string(), section.asset_type());
 
-        let map_data = serde_json::to_vec(&map).unwrap();
+        let map_data = toml::to_string(&map).unwrap();
 
         let section_path = &path.join(section_name);
 
-        write_property_file(&map_data, &section_path);
+        write_property_file(map_data.as_ref(), &section_path);
         create_dir_all(&section_path)?;
 
         let u_ext = section.get_unknown_file_type_ending();
@@ -44,6 +45,10 @@ pub fn unpack_halley_pk(pack: &dyn HalleyPack, path: &Path) -> Result<(), std::i
 
             let data = pack.get_asset_data(asset);
             let data = section.modify_file_on_unpack(&data);
+
+            if !file_path.parent().unwrap().exists() {
+                create_dir_all(file_path.parent().unwrap()).unwrap();
+            }
 
             let mut file = File::create(&file_path).unwrap();
             file.write_all(&data).unwrap();
@@ -87,32 +92,40 @@ pub fn pack_halley_pk<Section: HpkSection + 'static>(
         }
 
         let section_props_data = read_property_file(section_filename.as_path()).unwrap();
-        let section_props = serde_json::from_slice::<SectionProps>(&section_props_data).unwrap();
+        let section_props_data = std::str::from_utf8(&section_props_data).unwrap();
+        let section_props = toml::from_str::<SectionProps>(section_props_data).unwrap();
         let section_type = *section_props.get("asset_type").unwrap();
 
         let mut section = Section::new(section_type);
 
-        let paths = glob::glob(
-            section_filename
-                .join(format!("**/*{}", PROPERTIES_FILE_EXT))
-                .to_str()
-                .unwrap(),
-        )
-        .unwrap();
+        let paths = WalkDir::new(&section_filename)
+            .follow_links(false)
+            .into_iter()
+            .filter_map(|e| {
+                let e = e.ok()?;
+                let path = e.path();
+
+                if e.file_type().is_file() && !path.to_str().unwrap().ends_with(PROPERTIES_FILE_EXT)
+                {
+                    return Some(path.to_path_buf());
+                }
+                None
+            });
 
         let mut j = 0;
 
-        paths.for_each(|entry| {
-            let entry = entry.unwrap();
-            let entry_path = entry.to_str().unwrap();
+        paths.for_each(|file_path| {
+            if file_path.is_dir() {
+                return;
+            }
 
             let u_ext = section.get_unknown_file_type_ending();
             let ext = ""; //section.get_file_name_extension(j);
 
-            let file_path = Path::new(entry_path.strip_suffix(PROPERTIES_FILE_EXT).unwrap());
+            //let file_path = Path::new(entry_path.strip_suffix(PROPERTIES_FILE_EXT).unwrap());
 
-            let file_props_data = read_property_file(file_path).unwrap();
-            let file_data = fs::read(file_path).unwrap();
+            let file_props_data = read_property_file(&file_path.as_path()).unwrap();
+            let file_data = fs::read(&file_path).unwrap();
             let relative_path = file_path.strip_prefix(&section_filename).unwrap();
             let name = unpathify(
                 relative_path.to_str().unwrap().strip_suffix(ext).unwrap(),
@@ -131,6 +144,10 @@ pub fn pack_halley_pk<Section: HpkSection + 'static>(
 }
 
 fn write_property_file(properties_data: &[u8], filename: &Path) -> Option<std::io::Error> {
+    if properties_data.is_empty() {
+        return None;
+    }
+
     let prop_filename = append_to_path(filename, PROPERTIES_FILE_EXT);
     if !prop_filename.parent()?.exists() {
         create_dir_all(prop_filename.parent()?).unwrap();
@@ -142,20 +159,17 @@ fn write_property_file(properties_data: &[u8], filename: &Path) -> Option<std::i
 }
 
 fn read_property_file(filename: &Path) -> Result<Vec<u8>, std::io::Error> {
-    let prop_filename = append_to_path(filename, PROPERTIES_FILE_EXT);
-    let file = File::open(prop_filename)?;
     let mut buf = vec![];
-    BufReader::new(file).read_to_end(&mut buf);
+    let prop_filename = append_to_path(filename, PROPERTIES_FILE_EXT);
+
+    if !prop_filename.exists() {
+        return Ok(buf);
+    }
+
+    let file = File::open(prop_filename)?;
+    BufReader::new(file).read_to_end(&mut buf).unwrap();
     Ok(buf)
 }
-
-// fn read_property_file<T: ?Sized + DeserializeOwned>(
-//     filename: &Path,
-// ) -> Result<T, serde_json::Error> {
-//     let prop_filename = filename.with_extension(PROPERTIES_FILE_EXT);
-//     let file = File::open(prop_filename).unwrap();
-//     serde_json::from_reader(BufReader::new(file))
-// }
 
 fn pathify(name: &str, u_ext: &str) -> String {
     let filename = if !name.contains('.') {

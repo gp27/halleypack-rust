@@ -111,7 +111,8 @@ impl HpkSection for HpkSectionV2023 {
         props_data: &[u8],
         asset_data: &[u8],
     ) {
-        let props: ConfigNode = serde_json::from_slice(props_data).unwrap();
+        let props_data = std::str::from_utf8(props_data).unwrap();
+        let props: ConfigNode = toml::from_str(props_data).unwrap();
 
         let mut asset = HpkAssetV2023 {
             name,
@@ -241,7 +242,7 @@ impl HpkAsset for HpkAssetV2023 {
     }
 
     fn get_serialized_properties(&self) -> Vec<u8> {
-        serde_json::to_vec_pretty(&self.config).unwrap()
+        toml::to_string_pretty(&self.config).unwrap().into_bytes()
     }
 
     fn get_asset_compression(&self) -> Option<String> {
