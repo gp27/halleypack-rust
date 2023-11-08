@@ -53,8 +53,6 @@ where
     })
 }
 
-// pub fn w_hpk<W: Write>(pack: HalleyPack) -> impl SerializeFn<W> {}
-
 fn parse_hpk_header(i: &[u8]) -> IResult<&[u8], (&[u8], [u8; 16], u64, u64, u64)> {
     tuple((
         tag(IDENTIFIER),
@@ -64,33 +62,6 @@ fn parse_hpk_header(i: &[u8]) -> IResult<&[u8], (&[u8], [u8; 16], u64, u64, u64)
         le_u64,
     ))(i)
 }
-
-// fn w_hpk_header<W: Write>(pack: HalleyPack) -> impl SerializeFn<W> {
-//     pack.get_asset_data(asset)
-
-//     w_tuple((
-//         w_slice(IDENTIFIER),
-//         w_slice([0 as u8; 16]),
-//         w_le_u64(asset_db_start_pos),
-//         w_le_u64(data_start_pos),
-//         w_le_u64(asset_db_size),
-//     ))
-// }
-
-// fn parse_hpk_asset_db<I, O, E, G>(
-//     parse_section: G,
-// ) -> impl FnMut(I) -> IResult<I, Vec<O>, E>
-// where
-//     I: Clone
-//         + nom::Slice<std::ops::RangeFrom<usize>>
-//         + nom::InputIter<Item = u8>
-//         + nom::InputLength,
-//     O,
-//     G: Parser<I, O, E>,
-//     E: ParseError<I>,
-// {
-//     length_count(le_u32, parse_section)
-// }
 
 pub fn get_encrypted_data(
     data: &[u8],
@@ -145,18 +116,6 @@ fn encrypt(data: &[u8], key: &[u8; 16], iv: &[u8; 16]) -> Vec<u8> {
     c.set_auto_padding(false);
     c.cbc_encrypt(iv, data)
 }
-
-// fn write_hpk<'a, W: Write + 'a, Section: Writable + HpkSection>(
-//     pack: &dyn HalleyPack,
-//     secret: Option<&str>,
-// ) -> Box<dyn SerializeFn<W> + 'a> {
-//     let asset_db_writer = wh_tuple((
-//         w_le_u32(pack.sections().len() as u32),
-//         wh_all(pack.sections().iter().map(|s| (*s as &Section).write())),
-//     ));
-
-//     Box::new(asset_db_writer)
-// }
 
 impl Writable for HalleyPackData {
     fn write<'a>(&'a self) -> Box<dyn SerializeFn<Vec<u8>> + 'a> {

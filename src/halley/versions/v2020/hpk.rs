@@ -177,17 +177,6 @@ where
 }
 
 impl HpkAsset for HpkAssetV2020 {
-    // fn read(path: &Path) -> Self {
-    //     let (properties, data) =
-    //         super::super::super::assets::property_file::read_with_file_data(path).unwrap();
-    //     HpkAssetV2020 {
-    //         name: path.file_stem().unwrap().to_str().unwrap().to_owned(),
-    //         pos: 0,
-    //         size: 0,
-    //         properties,
-    //     }
-    // }
-
     fn name(&self) -> &String {
         &self.name
     }

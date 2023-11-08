@@ -133,10 +133,6 @@ pub trait HpkSectionUnpackable {
     }
 }
 
-// pub trait ParsablePack {
-//     fn parse<'a>(i: &'a [u8], secret: &str) -> IResult<&'a [u8], Box<Self>>;
-// }
-
 pub trait Parsable
 where
     Self: Sized,
