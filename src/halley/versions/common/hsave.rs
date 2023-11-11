@@ -4,7 +4,7 @@ use flate2::{read::ZlibDecoder, write::ZlibEncoder};
 use libaes::Cipher;
 use nom::{
     bytes::complete::{tag, take},
-    combinator::map,
+    combinator::{map, verify},
     error::ParseError,
     multi::length_count,
     number::complete::{le_i32, le_u32, le_u64},
@@ -14,52 +14,68 @@ use nom::{
 use num::iter::RangeFrom;
 use std::{
     cmp::min,
+    collections::HashSet,
     io::{Read, Seek, Write},
+    path::{Path, PathBuf},
 };
+
+use super::hpk_parse::get_decrypted_data;
 
 static IDENTIFIER: &str = "HLLYSAVE";
 
-pub struct SDLSaveHeaderV0 {
+#[derive(Debug)]
+struct SDLSaveHeaderV0 {
     pub version: u32,
     pub reserved: u32,
     pub iv: [u8; 16],
     pub filename_hash: u64,
 }
 
-pub struct SDLSaveHeaderV1 {
+struct SDLSaveHeaderV1 {
     pub data_hash: u64,
 }
 
-pub struct SDLSaveHeader {
+struct SDLSaveHeader {
     pub v0: SDLSaveHeaderV0,
     pub v1: Option<SDLSaveHeaderV1>,
 }
 
-// fn parse_hsave_header<I, E>(
-//     i: &[u8],
-// ) -> IResult<&[u8], SDLSaveHeaderV0, nom::error::VerboseError<I>>
-// where
-//     I: Slice<RangeFrom<usize>> + InputIter<Item = u8> + InputLength,
-// {
-//     let (i, header) = map(
-//         tuple((
-//             tag(IDENTIFIER),
-//             le_u32,
-//             le_u32,
-//             map(take(16usize), |iv: &[u8]| iv.try_into().unwrap()),
-//             le_u64,
-//         )),
-//         |(_, version, reserved, iv, filename_hash)| SDLSaveHeaderV0 {
-//             version,
-//             reserved,
-//             iv,
-//             filename_hash,
-//         },
-//     )(i)?;
+enum SaveDataType {}
 
-//     if header.version < 0 {
-//         Err::Failure("Invalid version")
-//     } else {
-//         Ok((i, header))
-//     }
-// }
+pub struct SDLSaveData {
+    save_type: SaveDataType,
+    dir: PathBuf,
+    key: Option<String>,
+    corrupted_files: HashSet<String>,
+}
+
+impl SDLSaveData {}
+
+pub fn load_save_data(path: &Path, key: Option<&str>) -> Vec<u8> {
+    let i = std::fs::read(path).unwrap();
+    parse_save(&i, key)
+}
+
+pub fn parse_save<'a>(i: &'a [u8], key: Option<&str>) -> Vec<u8> {
+    let (encrypted, header) = parse_hsave_header(i).unwrap();
+    println!("save header -> {:?}", header);
+    get_decrypted_data(encrypted, key, Some(&header.iv))
+}
+
+fn parse_hsave_header(i: &[u8]) -> IResult<&[u8], SDLSaveHeaderV0> {
+    map(
+        tuple((
+            tag(IDENTIFIER),
+            verify(le_u32, |version| *version == 1),
+            verify(le_u32, |reserved| *reserved == 0),
+            map(take(16usize), |iv: &[u8]| iv.try_into().unwrap()),
+            le_u64,
+        )),
+        |(_, version, reserved, iv, filename_hash)| SDLSaveHeaderV0 {
+            version,
+            reserved,
+            iv,
+            filename_hash,
+        },
+    )(i)
+}

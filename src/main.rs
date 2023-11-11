@@ -1,6 +1,5 @@
 mod steam;
 
-//use halley::pack::write_halley_pk;
 use clap::{Parser, Subcommand};
 use cookie_factory::WriteContext;
 use std::{
@@ -13,13 +12,13 @@ use steam::find_wargroove_assets_folder;
 use wgpack::halley::{
     assets::unpack::{pack_halley_pk, unpack_halley_pk},
     versions::{
-        common::hpk::HalleyPack,
+        common::{hpk::HalleyPack, hsave::load_save_data},
         v2020::hpk::{HalleyPackV2020, HpkSectionV2020},
         v2023::hpk::{HalleyPackV2023, HpkSectionV2023},
     },
 };
 
-//static SECRET: &str = "+Ohzep4z06NuKguNbFRz3w==";
+static SECRET_X: &str = "+Ohzep4z06NuKguNbFRz3w==";
 static SECRET: &str = "K09oemVwNHowNk51S2d1Tg==";
 
 // #[derive(Clone, Debug)]
@@ -67,6 +66,13 @@ enum Commands {
         #[arg(short = 'o', long)]
         out_file: String,
     },
+    ReadSave {
+        #[arg(short = 'i', long)]
+        save_file: String,
+
+        #[arg(short = 'o', long)]
+        out_file: Option<String>,
+    },
 }
 
 fn main() {
@@ -96,6 +102,16 @@ fn main() {
         } => {
             let pack = pack_wg(pack_dir, game);
             write_pack(pack, out_file)
+        }
+        Commands::ReadSave {
+            save_file,
+            out_file,
+        } => {
+            let data = load_save_data(save_file.as_ref(), Some(SECRET));
+            println!(
+                "save data -> {:x?}",
+                &data[0..std::cmp::min(100, data.len())]
+            );
         }
     };
 
