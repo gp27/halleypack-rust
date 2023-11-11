@@ -1,5 +1,3 @@
-use std::{cmp::min, collections::HashMap, io::Write};
-
 use cookie_factory::{
     bytes::{le_i32 as w_le_i32, le_i8 as w_le_i8},
     combinator::slice as w_slice,
@@ -7,7 +5,6 @@ use cookie_factory::{
     sequence::tuple as w_tuple,
     SerializeFn,
 };
-
 use nom::{
     bytes::complete::take,
     combinator::{map, peek},
@@ -17,6 +14,7 @@ use nom::{
     sequence::tuple,
     IResult,
 };
+use std::{cmp::min, collections::HashMap, io::Write};
 
 pub fn h_hashmap(i: &[u8]) -> IResult<&[u8], HashMap<String, String>> {
     length_count(le_u32, tuple((h_string, h_string)))(i).map(|(i, entries)| {
@@ -96,8 +94,16 @@ pub fn h_var_i(i: &[u8]) -> IResult<&[u8], i64> {
     map(var_u64(true), |(v, _)| i64::from_le_bytes(v.to_le_bytes()))(i)
 }
 
+pub fn wh_var_i(v: i64) -> impl SerializeFn<Vec<u8>> {
+    w_var_u64(Some(v >= 0), v as u64)
+}
+
 pub fn h_var_u(i: &[u8]) -> IResult<&[u8], u64> {
     map(var_u64(false), |(v, _)| v)(i)
+}
+
+pub fn wh_var_u(v: u64) -> impl SerializeFn<Vec<u8>> {
+    w_var_u64(None, v)
 }
 
 pub fn var_u64(is_signed: bool) -> impl Fn(&[u8]) -> IResult<&[u8], (u64, bool)> {
@@ -126,6 +132,47 @@ pub fn var_u64(is_signed: bool) -> impl Fn(&[u8]) -> IResult<&[u8], (u64, bool)>
             (v, sign)
         })(i)
     }
+}
+
+pub fn w_var_u64(is_signed: Option<bool>, v: u64) -> impl SerializeFn<Vec<u8>> {
+    let n_bits = if v == u64::MAX {
+        64
+    } else {
+        std::cmp::max(1, (v as f64).log2().ceil() as usize)
+            + (if is_signed.is_some() { 1 } else { 0 })
+    };
+
+    let n_bytes = std::cmp::min((n_bits - 1) / 7, 8) + 1;
+    let mut bytes = vec![0 as u8; n_bytes];
+
+    let mut to_write = v;
+    match is_signed {
+        Some(sign) => {
+            let sign = if sign { 1 } else { 0 };
+            let sign_pos = (n_bytes as i32) * 7 + (if n_bytes == 9 { 0 } else { -1 });
+            to_write |= sign << sign_pos;
+        }
+        None => {}
+    }
+
+    let header_bits = n_bytes;
+    bytes[0] = 255 as u8 ^ ((1 << (9 - header_bits)) - 1);
+
+    let mut bits_available = 8 - std::cmp::min(header_bits, 8);
+    let mut bits_to_write = n_bits;
+    let mut pos: usize = 0;
+
+    while bits_to_write > 0 {
+        let n_bits = std::cmp::min(bits_to_write, bits_available);
+        let mask = (1 << bits_available) - 1;
+        bytes[pos] |= to_write as u8 & mask;
+        to_write >>= n_bits;
+        bits_available = 0;
+        pos += 1;
+        bits_to_write -= n_bits;
+    }
+
+    w_slice(bytes)
 }
 
 fn read_var_n_bytes(i: &[u8]) -> IResult<&[u8], (&[u8], usize)> {
