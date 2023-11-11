@@ -69,10 +69,10 @@ pub fn get_encrypted_data(
     iv: Option<&[u8; 16]>,
 ) -> (Vec<u8>, [u8; 16]) {
     // TODO - remove empty secret check
-    let secret = secret.unwrap_or("");
-    if secret == "" {
+    if secret.is_none() {
         return (data.to_vec(), [0 as u8; 16]);
     }
+    let secret = secret.unwrap();
 
     let mut iv = *iv.unwrap_or(&[0 as u8; 16]);
     if iv == [0 as u8; 16] {
@@ -90,9 +90,9 @@ pub fn get_encrypted_data(
 
 pub fn get_decrypted_data(data: &[u8], secret: Option<&str>, iv: Option<&[u8; 16]>) -> Vec<u8> {
     // TODO - remove empty secret check
-    let secret = secret.unwrap_or("");
     let iv = iv.unwrap_or(&[0 as u8; 16]);
-    let has_crypt = *iv != [0 as u8; 16] && secret != "";
+    let has_crypt = *iv != [0 as u8; 16] && secret.is_some();
+    let secret = secret.unwrap_or("");
 
     if has_crypt {
         let mut key = [0; 16];
