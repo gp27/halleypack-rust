@@ -1,5 +1,3 @@
-use std::mem::size_of;
-
 use nom::{
     bytes::complete::{tag, take},
     combinator::{map, rest},
@@ -9,6 +7,7 @@ use nom::{
     IResult,
 };
 use num_derive::{FromPrimitive, ToPrimitive};
+use std::mem::size_of;
 
 static IDENTIFIER: &str = "HLIFv01";
 
