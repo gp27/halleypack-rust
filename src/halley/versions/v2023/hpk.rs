@@ -33,7 +33,7 @@ use std::path::Path;
 pub struct HalleyPackV2023 {}
 
 impl HalleyPackV2023 {
-    pub fn load(path: &Path, secret: &str) -> Result<Box<dyn HalleyPack>, std::io::Error> {
+    pub fn load(path: &Path, secret: Option<&str>) -> Result<Box<dyn HalleyPack>, std::io::Error> {
         HalleyPackData::load::<HpkSectionV2023>(path, secret)
     }
 }

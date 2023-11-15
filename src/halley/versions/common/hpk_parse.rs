@@ -22,7 +22,10 @@ use super::hpk::{HalleyPack, HalleyPackData, HpkSection, Parsable, Writable};
 
 static IDENTIFIER: &str = "HALLEYPK";
 
-pub fn parse_hpk<'a, Section>(i_full: &'a [u8], secret: &str) -> IResult<&'a [u8], impl HalleyPack>
+pub fn parse_hpk<'a, Section>(
+    i_full: &'a [u8],
+    secret: Option<&str>,
+) -> IResult<&'a [u8], impl HalleyPack>
 where
     Section: Parsable + HpkSection + 'static,
 {
@@ -40,7 +43,7 @@ where
         //     &asset_db_bytes[0..min(1000, asset_db_bytes.len())]
         // );
 
-        let data = get_decrypted_data(&i_full[data_start_pos as usize..], Some(secret), Some(&iv));
+        let data = get_decrypted_data(&i_full[data_start_pos as usize..], secret, Some(&iv));
 
         //println!("data -> {:?}", &data[0..min(1000, data.len())]);
 

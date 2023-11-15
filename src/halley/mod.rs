@@ -4,24 +4,32 @@ use std::{
     path::Path,
 };
 
+use clap::ValueEnum;
 use cookie_factory::WriteContext;
 use serde::{Deserialize, Serialize};
 
 use self::{
-    assets::{unpack::pack_halley_pk, utils::get_dat_files},
-    versions::{common::hpk::HalleyPack, v2020::hpk::HpkSectionV2020, v2023::hpk::HpkSectionV2023},
+    assets::{
+        unpack::{pack_halley_pk, unpack_halley_pk},
+        utils::get_dat_files,
+    },
+    versions::{
+        common::hpk::HalleyPack,
+        v2020::hpk::{HalleyPackV2020, HpkSectionV2020},
+        v2023::hpk::{HalleyPackV2023, HpkSectionV2023},
+    },
 };
 
 pub mod assets;
 pub mod versions;
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, ValueEnum)]
 pub enum PackVersion {
     V2020,
     V2023,
 }
 
-pub fn unpack_assets(src: &Path, dst: &Path, pack_version: PackVersion) {
+pub fn unpack_assets(src: &Path, dst: &Path, pack_version: PackVersion, secret: Option<&str>) {
     let dat_files = get_dat_files(src);
     if !dst.exists() && !dat_files.is_empty() {
         fs::create_dir_all(dst).unwrap();
@@ -33,12 +41,23 @@ pub fn unpack_assets(src: &Path, dst: &Path, pack_version: PackVersion) {
             fs::remove_dir_all(&dst_file).unwrap();
         }
         fs::create_dir_all(&dst_file).unwrap();
-        let pack = unpack_asset(&dat_file, pack_version);
-        write_pack(pack, &dst_file);
+        let pack = read_pack(&dat_file, pack_version, secret);
+        unpack_halley_pk(&*pack, &dst_file).unwrap();
     }
 }
 
-pub fn unpack_asset(path: &Path, pack_version: PackVersion) -> Box<dyn HalleyPack> {
+pub fn read_pack(
+    path: &Path,
+    pack_version: PackVersion,
+    secret: Option<&str>,
+) -> Box<dyn HalleyPack> {
+    match pack_version {
+        PackVersion::V2023 => HalleyPackV2023::load(path, secret).unwrap(),
+        PackVersion::V2020 => HalleyPackV2020::load(path, secret).unwrap(),
+    }
+}
+
+pub fn pack_asset(path: &Path, pack_version: PackVersion) -> Box<dyn HalleyPack> {
     match pack_version {
         PackVersion::V2023 => pack_halley_pk::<HpkSectionV2023>(path).unwrap(),
         PackVersion::V2020 => pack_halley_pk::<HpkSectionV2020>(path).unwrap(),

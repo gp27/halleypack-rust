@@ -31,7 +31,7 @@ use std::{collections::HashMap, path::Path};
 pub struct HalleyPackV2020 {}
 
 impl HalleyPackV2020 {
-    pub fn load(path: &Path, secret: &str) -> Result<Box<dyn HalleyPack>, std::io::Error> {
+    pub fn load(path: &Path, secret: Option<&str>) -> Result<Box<dyn HalleyPack>, std::io::Error> {
         HalleyPackData::load::<HpkSectionV2020>(path, secret)
     }
 }

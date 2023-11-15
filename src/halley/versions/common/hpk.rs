@@ -8,7 +8,10 @@ use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, path::Path};
 
 pub trait HalleyPack: Writable + Debug {
-    fn load<Section>(path: &Path, secret: &str) -> Result<Box<dyn HalleyPack>, std::io::Error>
+    fn load<Section>(
+        path: &Path,
+        secret: Option<&str>,
+    ) -> Result<Box<dyn HalleyPack>, std::io::Error>
     where
         Self: Sized,
         Section: Parsable + HpkSection + 'static,
