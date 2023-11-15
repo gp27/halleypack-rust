@@ -1,5 +1,3 @@
-mod steam;
-
 use clap::{Parser, Subcommand};
 use cookie_factory::WriteContext;
 use std::{
@@ -114,9 +112,6 @@ fn main() {
             );
         }
     };
-
-    return;
-    //println!("Wargroove folder: {:?}", find_wargroove_assets_folder(None));
 }
 
 fn unpack_wg(filename: String, game: Option<String>) -> Box<dyn HalleyPack> {
