@@ -1,6 +1,12 @@
 use super::super::common::{
-    hpk::Parsable,
-    primitives::{h_bool, h_string},
+    hpk::{Parsable, Writable},
+    primitives::{h_bool, h_string, wh_bool, wh_string},
+};
+use cookie_factory::{
+    bytes::{le_i32 as w_le_i32, le_u32 as w_le_u32},
+    multi::all as wh_all,
+    sequence::tuple as wh_tuple,
+    SerializeFn,
 };
 use nom::{
     combinator::map,
@@ -41,6 +47,21 @@ impl Parsable for Animation {
     }
 }
 
+impl Writable for Animation {
+    fn write<'a>(&'a self) -> Box<dyn SerializeFn<Vec<u8>> + 'a> {
+        let writer = wh_tuple((
+            wh_string(&self.name),
+            wh_string(&self.spritesheet),
+            wh_string(&self.material),
+            w_le_u32(self.sequences.len() as u32),
+            wh_all(self.sequences.iter().map(|f| f.write())),
+            w_le_u32(self.directions.len() as u32),
+            wh_all(self.directions.iter().map(|f| f.write())),
+        ));
+        Box::new(writer)
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Frame {
     pub imagename: String,
@@ -58,6 +79,17 @@ impl Parsable for Frame {
                 duration,
             },
         )(i)
+    }
+}
+
+impl Writable for Frame {
+    fn write<'a>(&'a self) -> Box<dyn SerializeFn<Vec<u8>> + 'a> {
+        let writer = wh_tuple((
+            wh_string(&self.imagename),
+            w_le_i32(self.frame),
+            w_le_i32(self.duration),
+        ));
+        Box::new(writer)
     }
 }
 
@@ -83,6 +115,19 @@ impl Parsable for Sequence {
     }
 }
 
+impl Writable for Sequence {
+    fn write<'a>(&'a self) -> Box<dyn SerializeFn<Vec<u8>> + 'a> {
+        let writer = wh_tuple((
+            w_le_u32(self.frames.len() as u32),
+            wh_all(self.frames.iter().map(|f| f.write())),
+            wh_string(&self.name),
+            wh_bool(self.is_loop),
+            wh_bool(self.no_flip),
+        ));
+        Box::new(writer)
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Direction {
     pub name: String,
@@ -102,5 +147,17 @@ impl Parsable for Direction {
                 flip,
             },
         )(i)
+    }
+}
+
+impl Writable for Direction {
+    fn write<'a>(&'a self) -> Box<dyn SerializeFn<Vec<u8>> + 'a> {
+        let writer = wh_tuple((
+            wh_string(&self.name),
+            wh_string(&self.filename),
+            w_le_i32(self.id),
+            wh_bool(self.flip),
+        ));
+        Box::new(writer)
     }
 }
