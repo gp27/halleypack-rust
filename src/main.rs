@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use clap::{Parser, Subcommand};
 
-use wgpack::halley::{
+use halleypack::halley::{
     assets::unpack::unpack_halley_pk, pack_asset, read_pack,
     versions::common::hsave::load_save_data, write_pack, PackVersion,
 };
@@ -10,11 +10,6 @@ use wgpack::halley::{
 //static SECRET_X: &str = "+Ohzep4z06NuKguNbFRz3w==";
 static SECRET: &str = "K09oemVwNHowNk51S2d1Tg==";
 
-// #[derive(Clone, Debug)]
-// enum Games {
-//     Wargroove(String),
-//     Wargroove2(String),
-// }
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 #[command(propagate_version = true)]

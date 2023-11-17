@@ -1,11 +1,11 @@
 [package]
-name = "wgpack"
+name = "halleypack"
 version = "0.1.0"
 edition = "2021"
 
 
 [[bin]]
-name = "wgpack"
+name = "halleypack"
 
 [dependencies]
 clap = { version = "4.4.7", features = ["derive"] }
@@ -22,7 +22,7 @@ num = "0.4.1"
 num-derive = "0.4.1"
 num-traits = "0.2.17"
 rand = "0.8.5"
+walkdir = "2.4.0"
 serde = { version = "1.0.188", features = ["derive"] }
 serde_json = { version = "1.0.107", features = ["preserve_order"] }
 toml = { version = "0.8.8", features = ["preserve_order"] }
-walkdir = "2.4.0"

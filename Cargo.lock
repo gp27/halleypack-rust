@@ -322,6 +322,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "halleypack"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "clap",
+ "cookie-factory",
+ "derivative",
+ "derive-new",
+ "flate2",
+ "image",
+ "libaes",
+ "lz4",
+ "nom",
+ "num",
+ "num-derive",
+ "num-traits",
+ "rand",
+ "serde",
+ "serde_json",
+ "toml",
+ "walkdir",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -839,30 +863,6 @@ name = "weezl"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9193164d4de03a926d909d3bc7c30543cecb35400c02114792c2cae20d5e2dbb"
-
-[[package]]
-name = "wgpack"
-version = "0.1.0"
-dependencies = [
- "base64",
- "clap",
- "cookie-factory",
- "derivative",
- "derive-new",
- "flate2",
- "image",
- "libaes",
- "lz4",
- "nom",
- "num",
- "num-derive",
- "num-traits",
- "rand",
- "serde",
- "serde_json",
- "toml",
- "walkdir",
-]
 
 [[package]]
 name = "winapi"
