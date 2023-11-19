@@ -17,7 +17,7 @@ use nom::{
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Animation {
     pub name: String,
     pub spritesheet: String,
@@ -62,7 +62,7 @@ impl Writable for Animation {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Frame {
     pub imagename: String,
     pub frame: i32,
@@ -93,7 +93,7 @@ impl Writable for Frame {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Sequence {
     pub frames: Vec<Frame>,
     pub name: String,
@@ -128,7 +128,7 @@ impl Writable for Sequence {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Direction {
     pub name: String,
     pub filename: String,

@@ -3,7 +3,7 @@ use super::super::common::{
     primitives::{h_bool, h_string, wh_bool, wh_string},
 };
 use cookie_factory::{
-    bytes::{le_f32 as w_le_f32, le_i16 as w_le_i16, le_i32 as w_le_i32},
+    bytes::{le_f32 as w_le_f32, le_i16 as w_le_i16, le_i32 as w_le_i32, le_u32 as w_le_u32},
     multi::all as wh_all,
     sequence::tuple as wh_tuple,
     SerializeFn,
@@ -18,7 +18,7 @@ use nom::{
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct SpriteSheet {
     pub name: String,
     pub sprites: Vec<Sprite>,
@@ -49,17 +49,17 @@ impl Writable for SpriteSheet {
     fn write<'a>(&'a self) -> Box<dyn SerializeFn<Vec<u8>> + 'a> {
         let writer = wh_tuple((
             wh_string(&self.name),
-            w_le_i32(self.sprites.len() as i32),
+            w_le_u32(self.sprites.len() as u32),
             wh_all(self.sprites.iter().map(|s| s.write())),
             sprite_idx_writer(&self.sprite_idx),
-            w_le_i32(self.frame_tags.len() as i32),
+            w_le_u32(self.frame_tags.len() as u32),
             wh_all(self.frame_tags.iter().map(|t| t.write())),
         ));
         Box::new(writer)
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Sprite {
     pub pivot: (f32, f32),
     pub orig_pivot: (i32, i32),
@@ -143,7 +143,7 @@ fn sprite_idx_writer<'a>(
     sprite_idx: &'a HashMap<String, i32>,
 ) -> Box<dyn SerializeFn<Vec<u8>> + 'a> {
     let writer = wh_tuple((
-        w_le_i32(sprite_idx.len() as i32),
+        w_le_u32(sprite_idx.len() as u32),
         wh_all(
             sprite_idx
                 .iter()
@@ -153,7 +153,7 @@ fn sprite_idx_writer<'a>(
     Box::new(writer)
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct FrameTag {
     pub name: String,
     pub to: i32,
