@@ -230,7 +230,10 @@ fn wh_confignode_layer<'a>(
         ConfigNode::Map(map) => (ConfigNodeType::Map, Box::new(wh_cn_map_deep(map))),
         ConfigNode::Sequence(seq) => (
             ConfigNodeType::Sequence,
-            Box::new(wh_all(seq.iter().map(|n| wh_confignode_deep(n)))),
+            Box::new(wh_tuple((
+                w_le_u32(seq.len() as u32),
+                wh_all(seq.iter().map(|n| wh_confignode_deep(n))),
+            ))),
         ),
         ConfigNode::Float(f) => (ConfigNodeType::Int, Box::new(w_le_f32(*f))),
         ConfigNode::Int2((i1, i2)) => (
@@ -241,10 +244,14 @@ fn wh_confignode_layer<'a>(
             ConfigNodeType::Float2,
             Box::new(wh_tuple((w_le_f32(*f1), w_le_f32(*f2)))),
         ),
-        ConfigNode::Bytes(b) => (ConfigNodeType::Bytes, Box::new(wh_slice(b))),
+        ConfigNode::Bytes(b) => (
+            ConfigNodeType::Bytes,
+            Box::new(wh_tuple((w_le_u32(b.len() as u32), wh_slice(b)))),
+        ),
         ConfigNode::DeltaSequence((seq, i)) => (
             ConfigNodeType::DeltaSequence,
             Box::new(wh_tuple((
+                w_le_u32(seq.len() as u32),
                 wh_all(seq.iter().map(|n| wh_confignode_deep(n))),
                 w_le_i32(*i),
             ))),
