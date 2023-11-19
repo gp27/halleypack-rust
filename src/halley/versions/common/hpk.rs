@@ -4,7 +4,7 @@ use cookie_factory::{SerializeFn, WriteContext};
 use derivative::Derivative;
 use derive_new::new;
 use nom::IResult;
-use serde::{Deserialize, Serialize};
+use serde::{de::Deserialize, Serialize};
 use std::{fmt::Debug, path::Path};
 
 pub trait HalleyPack: Writable + Debug {
@@ -147,14 +147,36 @@ pub trait Writable {
     fn write<'a>(&'a self) -> Box<dyn SerializeFn<Vec<u8>> + 'a>;
 }
 
-pub fn unpack_transform<T: Parsable + Serialize>(i: &[u8]) -> Vec<u8> {
+pub fn unpack_transform<T: Parsable + Serialize, TT: Serialize>(
+    i: &[u8],
+    transform: Option<fn(T) -> TT>,
+) -> Vec<u8> {
     let (_, t) = T::parse(i).unwrap();
-    serde_json::to_string_pretty(&t).unwrap().into_bytes()
+    match transform {
+        Some(transform) => json5::to_string(&transform(t)),
+        None => json5::to_string(&t),
+    }
+    .unwrap()
+    .into_bytes()
 }
 
-pub fn pack_transform<'a, T: Writable + Deserialize<'a>>(i: &'a [u8]) -> Vec<u8> {
-    let t: T = serde_json::from_slice(i).unwrap();
-    let writer = t.write();
+pub fn pack_transform<'a, T: Writable + Deserialize<'a>, TT: Deserialize<'a> + Debug>(
+    i: &'a [u8],
+    transform: Option<fn(TT) -> T>,
+) -> Vec<u8> {
+    let str = std::str::from_utf8(i).unwrap();
+    let object = match transform {
+        Some(transform) => {
+            let tt: TT = json5::from_str(str).unwrap();
+            transform(tt)
+        }
+        None => {
+            let t: T = json5::from_str(str).unwrap();
+            t
+        }
+    };
+
+    let writer = object.write();
     let w = WriteContext::from(Vec::new());
     writer(w).unwrap().write
 }

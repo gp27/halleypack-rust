@@ -101,6 +101,8 @@ impl HpkSection for HpkSectionV2023 {
             super::super::super::assets::property_file::read_with_file_data::<ConfigNode>(path)
                 .unwrap();
 
+        let data = self.modify_file_on_repack(&data);
+
         let name = self.get_asset_name(relative_path.to_str().unwrap(), get_compression(&config));
 
         let mut asset = HpkAssetV2023 {
@@ -143,7 +145,7 @@ impl HpkSectionUnpackable for HpkSectionV2023 {
 
         let j = match self.asset_type {
             AssetTypeV2023::SPRITESHEET => match spritesheet_parser(i) {
-                Ok((_, spritesheet)) => serde_json::to_string_pretty(&spritesheet).unwrap(),
+                Ok((_, spritesheet)) => json5::to_string(&spritesheet).unwrap(),
                 Err(err) => {
                     println!("parse error: {:#?}", err);
                     return i.to_owned();
@@ -151,11 +153,11 @@ impl HpkSectionUnpackable for HpkSectionV2023 {
             },
             AssetTypeV2023::ANIMATION => {
                 let (_, animation) = animation_parser(i).unwrap();
-                serde_json::to_string_pretty(&animation).unwrap()
+                json5::to_string(&animation).unwrap()
             }
             AssetTypeV2023::CONFIG => {
                 let (_, config) = h_config_file(i).unwrap();
-                serde_json::to_string_pretty(&config).unwrap()
+                json5::to_string(&config).unwrap()
             }
             // AssetTypeV2023::TEXTURE => {
             //     let (_, texture) = hlif_parser(i).unwrap();

@@ -1,5 +1,5 @@
 use crate::halley::versions::common::{
-    config::ConfigFile,
+    config::{ConfigFile, ConfigNode},
     hpk::{pack_transform, unpack_transform, HalleyPackData},
 };
 
@@ -103,7 +103,10 @@ impl HpkSection for HpkSectionV2020 {
             properties,
         };
 
+        let data = self.modify_file_on_repack(&data);
+
         let compression = asset.get_asset_compression();
+
         let (pos, size) = pack.add_data(&data, compression);
 
         asset.set_pos_size(pos, size);
@@ -124,18 +127,27 @@ impl HpkSectionUnpackable for HpkSectionV2020 {
 
     fn modify_file_on_unpack<'a>(&self, i: &'a [u8]) -> Vec<u8> {
         match self.asset_type {
-            AssetTypeV2020::SPRITESHEET => unpack_transform::<SpriteSheet>(i),
-            AssetTypeV2020::ANIMATION => unpack_transform::<Animation>(i),
-            AssetTypeV2020::CONFIG => unpack_transform::<ConfigFile>(i),
+            AssetTypeV2020::SPRITESHEET => unpack_transform::<SpriteSheet, SpriteSheet>(i, None),
+            AssetTypeV2020::ANIMATION => unpack_transform::<Animation, Animation>(i, None),
+            AssetTypeV2020::CONFIG => {
+                unpack_transform::<ConfigFile, ConfigNode>(i, Some(|c| c.root))
+            }
             _ => return i.to_owned(),
         }
     }
 
     fn modify_file_on_repack(&self, i: &[u8]) -> Vec<u8> {
         match self.asset_type {
-            AssetTypeV2020::SPRITESHEET => pack_transform::<SpriteSheet>(i),
-            // AssetTypeV2020::ANIMATION => pack_transform::<Animation>(i),
-            // AssetTypeV2020::CONFIG => pack_transform::<ConfigFile>(i),
+            AssetTypeV2020::SPRITESHEET => pack_transform::<SpriteSheet, SpriteSheet>(i, None),
+            AssetTypeV2020::ANIMATION => pack_transform::<Animation, Animation>(i, None),
+            AssetTypeV2020::CONFIG => pack_transform::<ConfigFile, ConfigNode>(
+                i,
+                Some(|t| ConfigFile {
+                    v: 2,
+                    store_file_position: true,
+                    root: t,
+                }),
+            ),
             _ => i.to_owned(),
         }
     }
