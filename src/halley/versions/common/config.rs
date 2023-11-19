@@ -1,10 +1,10 @@
 use super::{
-    hpk::Parsable,
+    hpk::{Parsable, Writable},
     primitives::{h_bool, h_f32, h_i32, h_i64, h_string, h_u32, wh_bool, wh_string},
 };
 use cookie_factory::{
     bytes::{le_f32 as w_le_f32, le_i32 as w_le_i32, le_i64 as w_le_i64, le_u32 as w_le_u32},
-    combinator::slice as wh_slice,
+    combinator::{cond as wh_cond, slice as wh_slice},
     multi::all as wh_all,
     sequence::tuple as wh_tuple,
     SerializeFn,
@@ -82,6 +82,12 @@ pub struct ConfigFile {
 impl Parsable for ConfigFile {
     fn parse(i: &[u8]) -> IResult<&[u8], Self> {
         h_config_file(i)
+    }
+}
+
+impl Writable for ConfigFile {
+    fn write<'a>(&'a self) -> Box<dyn SerializeFn<Vec<u8>> + 'a> {
+        wh_config_file(self)
     }
 }
 
@@ -166,30 +172,24 @@ fn h_confignode_layer(h_confignode_deep: ConfigNodeParser, i: &[u8]) -> IResult<
         a
     })
 }
-
-// pub fn h_confignode_map(i: &[u8]) -> IResult<&[u8], ConfigNodeMap> {
-//     map(
-//         length_count(le_u32, tuple((h_string, h_confignode))),
-//         vec_to_map,
-//     )(i)
-// }
-
 fn vec_to_map<K: Eq + Hash, V>(v: Vec<(K, V)>) -> HashMap<K, V> {
     v.into_iter()
         .map(|(k, v)| (k, v))
         .collect::<HashMap<K, V>>()
 }
 
-// fn wh_cn_map_deep<'a>(map: &'a ConfigNodeMap) -> Box<dyn SerializeFn<Vec<u8>> + 'a> {
-//     let writer = wh_tuple((
-//         w_le_u32(map.len() as u32),
-//         wh_all(
-//             map.iter()
-//                 .map(|(k, v)| wh_tuple((wh_string(k), wh_confignode_layer(v)))),
-//         ),
-//     ));
-//     Box::new(writer)
-// }
+pub fn wh_config_file<'a>(file: &'a ConfigFile) -> Box<dyn SerializeFn<Vec<u8>> + 'a> {
+    let writer = wh_tuple((
+        w_le_i32(file.v),
+        wh_cond(file.v > 2, wh_bool(file.store_file_position)),
+        wh_cond(
+            file.store_file_position,
+            wh_confignode_with_position(&file.root),
+        ),
+        wh_cond(!file.store_file_position, wh_confignode(&file.root)),
+    ));
+    Box::new(writer)
+}
 
 pub fn wh_confignode<'a>(node: &'a ConfigNode) -> Box<dyn SerializeFn<Vec<u8>> + 'a> {
     wh_confignode_layer(&wh_confignode, node)
