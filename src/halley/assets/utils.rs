@@ -33,6 +33,18 @@ pub fn get_dat_files(dir: &Path) -> Vec<PathBuf> {
     files
 }
 
+pub fn get_dat_folders(dir: &Path) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+    for entry in fs::read_dir(dir).unwrap() {
+        let entry = entry.unwrap();
+        let path = entry.path();
+        if path.is_dir() && path.extension().unwrap() == "dat" {
+            files.push(path);
+        }
+    }
+    files
+}
+
 pub fn copy_assets(src: &Path, dst: &Path, force: Option<bool>) {
     let dat_files = get_dat_files(src);
     if !dst.exists() && !dat_files.is_empty() {
