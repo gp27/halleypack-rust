@@ -138,10 +138,10 @@ impl Writable for HalleyPackData {
             .unwrap();
 
         let asset_db_size = asset_db.len();
-        let asset_db_start_pos = IDENTIFIER.len() + 16 + (size_of::<u64>() * 3);
-        let data_start_pos = asset_db_start_pos + encoded.len();
+        let asset_db_start_pos = IDENTIFIER.len() + 16 + (size_of::<u64>() * 2);
+        let data_start_pos = asset_db_start_pos + size_of::<u64>() + encoded.len();
 
-        assert!(asset_db_start_pos == 48);
+        assert!(asset_db_start_pos == 40);
 
         let writer = wh_tuple((
             w_slice(IDENTIFIER),
