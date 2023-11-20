@@ -42,6 +42,7 @@ pub enum ConfigNodeType {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "__node_type", content = "__node_value")]
 pub enum ConfigNode {
     Undefined,
 
