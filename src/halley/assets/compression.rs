@@ -6,6 +6,8 @@ use nom::{
 };
 use std::io::Read;
 
+static LZ4_MAGIC: &[u8] = b"LZ4\0";
+
 pub fn decompress(data: &[u8], compression: &str) -> Vec<u8> {
     match compression {
         "deflate" => {
@@ -43,7 +45,17 @@ pub fn compress(data: &[u8], compression: &str) -> Vec<u8> {
                 .unwrap();
             encoded
         }
-        "lz4" => lz4::block::compress(data, None, false).expect("Could not compress LZ4 data!"),
+        "lz4" => {
+            let bound = lz4::block::compress_bound(data.len()).unwrap();
+            let prefix_len: usize = LZ4_MAGIC.len();
+            let mut compressed = vec![0; prefix_len + bound];
+            compressed.splice(0..prefix_len, LZ4_MAGIC.to_vec());
+            let compressed_size =
+                lz4::block::compress_to_buffer(data, None, true, &mut compressed[prefix_len..])
+                    .expect("Could not compress LZ4 data!");
+            compressed.truncate(prefix_len + compressed_size);
+            compressed
+        }
         _ => {
             println!("Unknown compression type: {}", compression);
             data.to_vec()
