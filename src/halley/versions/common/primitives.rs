@@ -215,3 +215,81 @@ fn peek_var_n_bytes(i: &[u8]) -> IResult<&[u8], usize> {
         n_bytes
     })(i)
 }
+
+#[cfg(test)]
+mod tests {
+    use cookie_factory::WriteContext;
+
+    use super::*;
+
+    fn convert_back_and_forth_i(n: i64) -> i64 {
+        let buf = vec![];
+        let res = wh_var_i(n)(WriteContext {
+            write: buf,
+            position: 0,
+        })
+        .unwrap();
+        let (_, vv) = h_var_i(&res.write).unwrap();
+        vv
+    }
+
+    fn convert_back_and_forth_u(n: u64) -> u64 {
+        let buf = vec![];
+        let res = wh_var_u(n)(WriteContext {
+            write: buf,
+            position: 0,
+        })
+        .unwrap();
+        let (_, vv) = h_var_u(&res.write).unwrap();
+        vv
+    }
+
+    #[test]
+    fn test_wh_var_i() {
+        let tests = vec![
+            0,
+            1,
+            128,
+            14141,
+            8457345,
+            275602752,
+            61956541,
+            9223372036854775807,
+            -1,
+            -114115,
+            -128,
+        ];
+
+        for v in tests {
+            assert_eq!(v, convert_back_and_forth_i(v));
+        }
+    }
+
+    #[test]
+    fn test_wh_var_u() {
+        let tests = vec![
+            0,
+            1,
+            100,
+            128,
+            14141,
+            12800,
+            1638400,
+            8457345,
+            61956541,
+            209715200,
+            275602752,
+            26843545600,
+            3435973836800,
+            439804651110400,
+            56294995342131200,
+            7205759403792793600,
+            9223372036854775807,
+            18446744073709551615,
+        ];
+
+        for v in tests {
+            assert_eq!(v, convert_back_and_forth_u(v));
+        }
+    }
+}
