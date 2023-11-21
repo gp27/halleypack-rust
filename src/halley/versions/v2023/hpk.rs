@@ -2,7 +2,7 @@ use super::{
     super::common::{
         hpk::{HalleyPack, HpkAsset, HpkSection, HpkSectionUnpackable, Parsable},
         {
-            config::{h_config_file, h_confignode, wh_confignode, ConfigNode},
+            config::{h_confignode, wh_confignode, ConfigNode},
             primitives::{h_pos_size, h_string},
         },
     },

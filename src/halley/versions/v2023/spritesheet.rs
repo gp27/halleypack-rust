@@ -2,10 +2,12 @@ use std::collections::HashMap;
 
 use crate::halley::versions::common::{
     hpk::{Parsable, Writable},
-    primitives::{h_bool, h_var_i, h_var_string, h_var_u, wh_bool, wh_var_i, wh_var_string},
+    primitives::{
+        h_bool, h_var_i, h_var_string, h_var_u, wh_bool, wh_var_i, wh_var_string, wh_var_u,
+    },
 };
 use cookie_factory::{
-    bytes::{le_f32 as w_le_f32, le_u32 as w_le_u32},
+    bytes::{le_f32 as w_le_f32, le_u8 as w_le_u8},
     combinator::cond as wh_cond,
     multi::all as wh_all,
     sequence::tuple as wh_tuple,
@@ -41,7 +43,7 @@ impl Parsable for SpriteSheet {
                 SpriteIdx::parse,
                 length_count(h_var_u, FrameTag::parse),
                 cond(v >= 1, h_var_string),
-                //cond(v >= 2, h_short_string), // not yet implemented in this version
+                //cond(v >= 2, h_var_string), // not yet implemented in this version
             ))
         });
 
@@ -62,11 +64,12 @@ impl Parsable for SpriteSheet {
 impl Writable for SpriteSheet {
     fn write<'a>(&'a self) -> Box<dyn cookie_factory::SerializeFn<Vec<u8>> + 'a> {
         let writer = wh_tuple((
+            w_le_u8(self.v), //wh_cond(self.v as i32 <= 255, w_le_u8(self.v)),
             wh_var_string(&self.name),
-            w_le_u32(self.sprites.len() as u32),
+            wh_var_u(self.sprites.len() as u64),
             wh_all(self.sprites.iter().map(|s| s.write())),
             self.sprite_idx.write(),
-            w_le_u32(self.frame_tags.len() as u32),
+            wh_var_u(self.frame_tags.len() as u64),
             wh_all(self.frame_tags.iter().map(|t| t.write())),
             wh_cond(
                 self.v >= 1,
@@ -162,7 +165,7 @@ pub struct SpriteIdx(HashMap<String, i32>);
 impl Parsable for SpriteIdx {
     fn parse(i: &[u8]) -> IResult<&[u8], Self> {
         map(
-            length_count(h_var_u, tuple((h_var_string, h_var_u))),
+            length_count(h_var_u, tuple((h_var_string, h_var_i))),
             |entries| {
                 let mut map = HashMap::new();
                 for (k, v) in entries {
@@ -177,7 +180,7 @@ impl Parsable for SpriteIdx {
 impl Writable for SpriteIdx {
     fn write<'a>(&'a self) -> Box<dyn SerializeFn<Vec<u8>> + 'a> {
         let writer = wh_tuple((
-            w_le_u32(self.0.len() as u32),
+            wh_var_u(self.0.len() as u64),
             wh_all(
                 self.0
                     .iter()
