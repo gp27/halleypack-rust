@@ -153,7 +153,7 @@ impl HpkSectionUnpackable for HpkSectionV2023 {
             AssetTypeV2023::CONFIG => pack_transform::<ConfigFile, ConfigNode>(
                 i,
                 Some(|t| ConfigFile {
-                    v: 2,
+                    v: 3,
                     store_file_position: true,
                     root: t,
                 }),
