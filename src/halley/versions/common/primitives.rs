@@ -62,6 +62,11 @@ pub fn h_var_string(i: &[u8]) -> IResult<&[u8], String> {
     length_data(h_var_u)(i).map(|(i, s)| (i, String::from_utf8(s.to_vec()).unwrap()))
 }
 
+pub fn wh_var_string(str: &String) -> impl SerializeFn<Vec<u8>> {
+    let len = str.len();
+    w_tuple((wh_var_u(len as u64), w_slice(str.clone())))
+}
+
 pub fn h_bool(i: &[u8]) -> IResult<&[u8], bool> {
     le_i8(i).map(|(i, b)| (i, b == 1))
 }
@@ -143,7 +148,7 @@ pub fn w_var_u64(is_signed: Option<bool>, v: u64) -> impl SerializeFn<Vec<u8>> {
     };
 
     let n_bytes = std::cmp::min((n_bits - 1) / 7, 8) + 1;
-    let mut bytes = vec![0 as u8; n_bytes];
+    let mut bytes = vec![0 as u8; 9];
 
     let mut to_write = v;
     match is_signed {
@@ -156,7 +161,7 @@ pub fn w_var_u64(is_signed: Option<bool>, v: u64) -> impl SerializeFn<Vec<u8>> {
     }
 
     let header_bits = n_bytes;
-    bytes[0] = 255 as u8 ^ ((1 << (9 - header_bits)) - 1);
+    bytes[0] = (255 ^ ((1 << (9 - header_bits)) - 1)) as u8;
 
     let mut bits_available = 8 - std::cmp::min(header_bits, 8);
     let mut bits_to_write = n_bits;
@@ -164,10 +169,10 @@ pub fn w_var_u64(is_signed: Option<bool>, v: u64) -> impl SerializeFn<Vec<u8>> {
 
     while bits_to_write > 0 {
         let n_bits = std::cmp::min(bits_to_write, bits_available);
-        let mask = (1 << bits_available) - 1;
-        bytes[pos] |= to_write as u8 & mask;
+        let mask = ((1 as u64) << bits_available) - 1;
+        bytes[pos] |= (to_write & mask) as u8;
         to_write >>= n_bits;
-        bits_available = 0;
+        bits_available = 8;
         pos += 1;
         bits_to_write -= n_bits;
     }
