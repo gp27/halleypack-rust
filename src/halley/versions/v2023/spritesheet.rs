@@ -1,6 +1,16 @@
-use crate::halley::versions::common::primitives::{h_var_i, h_var_u};
+use std::collections::HashMap;
 
-use super::super::common::primitives::{h_bool, h_var_string};
+use crate::halley::versions::common::{
+    hpk::{Parsable, Writable},
+    primitives::{h_bool, h_var_i, h_var_string, h_var_u, wh_bool, wh_var_i, wh_var_string},
+};
+use cookie_factory::{
+    bytes::{le_f32 as w_le_f32, le_u32 as w_le_u32},
+    combinator::cond as wh_cond,
+    multi::all as wh_all,
+    sequence::tuple as wh_tuple,
+    SerializeFn,
+};
 use nom::{
     combinator::{cond, flat_map, map, peek},
     multi::length_count,
@@ -9,43 +19,62 @@ use nom::{
     IResult,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SpriteSheet {
     pub v: u8,
     pub name: String,
     pub sprites: Vec<Sprite>,
-    pub sprite_idx: HashMap<String, i32>,
+    pub sprite_idx: SpriteIdx,
     pub frame_tags: Vec<FrameTag>,
     pub def_material_name: Option<String>,
     //pub palette_name: Option<String>,
 }
 
-pub fn spritesheet_parser(i: &[u8]) -> IResult<&[u8], SpriteSheet> {
-    let versioned = flat_map(peek(u8), |v| {
-        tuple((
-            cond(v as i32 <= 255, u8),
-            h_var_string,
-            length_count(h_var_u, sprite_parser),
-            sprite_idx_parser,
-            length_count(h_var_u, frame_tag_parser),
-            cond(v >= 1, h_var_string),
-            //cond(v >= 2, h_short_string), // not yet implemented in this version
-        ))
-    });
+impl Parsable for SpriteSheet {
+    fn parse(i: &[u8]) -> IResult<&[u8], Self> {
+        let versioned = flat_map(peek(u8), |v| {
+            tuple((
+                cond(v as i32 <= 255, u8),
+                h_var_string,
+                length_count(h_var_u, Sprite::parse),
+                SpriteIdx::parse,
+                length_count(h_var_u, FrameTag::parse),
+                cond(v >= 1, h_var_string),
+                //cond(v >= 2, h_short_string), // not yet implemented in this version
+            ))
+        });
 
-    map(
-        versioned,
-        |(v, name, sprites, sprite_idx, frame_tags, def_material_name)| SpriteSheet {
-            v: v.unwrap_or(0),
-            name,
-            sprites,
-            sprite_idx,
-            frame_tags,
-            def_material_name,
-        },
-    )(i)
+        map(
+            versioned,
+            |(v, name, sprites, sprite_idx, frame_tags, def_material_name)| SpriteSheet {
+                v: v.unwrap_or(0),
+                name,
+                sprites,
+                sprite_idx,
+                frame_tags,
+                def_material_name,
+            },
+        )(i)
+    }
+}
+
+impl Writable for SpriteSheet {
+    fn write<'a>(&'a self) -> Box<dyn cookie_factory::SerializeFn<Vec<u8>> + 'a> {
+        let writer = wh_tuple((
+            wh_var_string(&self.name),
+            w_le_u32(self.sprites.len() as u32),
+            wh_all(self.sprites.iter().map(|s| s.write())),
+            self.sprite_idx.write(),
+            w_le_u32(self.frame_tags.len() as u32),
+            wh_all(self.frame_tags.iter().map(|t| t.write())),
+            wh_cond(
+                self.v >= 1,
+                wh_var_string(&self.def_material_name.clone().unwrap()),
+            ),
+        ));
+        Box::new(writer)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -59,47 +88,104 @@ pub struct Sprite {
     pub slices: (i16, i16, i16, i16),
 }
 
-pub fn sprite_parser(i: &[u8]) -> IResult<&[u8], Sprite> {
-    map(
-        tuple((
-            tuple((le_f32, le_f32)),
-            tuple((h_var_i, h_var_i)),
-            tuple((le_f32, le_f32)),
-            tuple((le_f32, le_f32, le_f32, le_f32)),
-            h_bool,
-            tuple((h_var_i, h_var_i, h_var_i, h_var_i)),
-            tuple((h_var_i, h_var_i, h_var_i, h_var_i)),
-        )),
-        |(pivot, orig_pivot, size, coords, rotated, trim_border, slices)| Sprite {
-            pivot,
-            orig_pivot: (orig_pivot.0 as i32, orig_pivot.1 as i32),
-            size: (size.0 as f32, size.1 as f32),
-            coords,
-            rotated,
-            trim_border: (
-                trim_border.0 as i16,
-                trim_border.1 as i16,
-                trim_border.2 as i16,
-                trim_border.3 as i16,
-            ),
-            slices: (
-                slices.0 as i16,
-                slices.1 as i16,
-                slices.2 as i16,
-                slices.3 as i16,
-            ),
-        },
-    )(i)
+impl Parsable for Sprite {
+    fn parse(i: &[u8]) -> IResult<&[u8], Self> {
+        map(
+            tuple((
+                tuple((le_f32, le_f32)),
+                tuple((h_var_i, h_var_i)),
+                tuple((le_f32, le_f32)),
+                tuple((le_f32, le_f32, le_f32, le_f32)),
+                h_bool,
+                tuple((h_var_i, h_var_i, h_var_i, h_var_i)),
+                tuple((h_var_i, h_var_i, h_var_i, h_var_i)),
+            )),
+            |(pivot, orig_pivot, size, coords, rotated, trim_border, slices)| Sprite {
+                pivot,
+                orig_pivot: (orig_pivot.0 as i32, orig_pivot.1 as i32),
+                size: (size.0 as f32, size.1 as f32),
+                coords,
+                rotated,
+                trim_border: (
+                    trim_border.0 as i16,
+                    trim_border.1 as i16,
+                    trim_border.2 as i16,
+                    trim_border.3 as i16,
+                ),
+                slices: (
+                    slices.0 as i16,
+                    slices.1 as i16,
+                    slices.2 as i16,
+                    slices.3 as i16,
+                ),
+            },
+        )(i)
+    }
 }
 
-pub fn sprite_idx_parser(i: &[u8]) -> IResult<&[u8], HashMap<String, i32>> {
-    length_count(h_var_u, tuple((h_var_string, h_var_u)))(i).map(|(i, entries)| {
-        let mut map = HashMap::new();
-        for (k, v) in entries {
-            map.insert(k, v as i32);
-        }
-        (i, map)
-    })
+impl Writable for Sprite {
+    fn write<'a>(&'a self) -> Box<dyn SerializeFn<Vec<u8>> + 'a> {
+        let writer = wh_tuple((
+            wh_tuple((w_le_f32(self.pivot.0), w_le_f32(self.pivot.1))),
+            wh_tuple((
+                wh_var_i(self.orig_pivot.0 as i64),
+                wh_var_i(self.orig_pivot.1 as i64),
+            )),
+            wh_tuple((w_le_f32(self.size.0), w_le_f32(self.size.1))),
+            wh_tuple((
+                w_le_f32(self.coords.0),
+                w_le_f32(self.coords.1),
+                w_le_f32(self.coords.2),
+                w_le_f32(self.coords.3),
+            )),
+            wh_bool(self.rotated),
+            wh_tuple((
+                wh_var_i(self.trim_border.0 as i64),
+                wh_var_i(self.trim_border.1 as i64),
+                wh_var_i(self.trim_border.2 as i64),
+                wh_var_i(self.trim_border.3 as i64),
+            )),
+            wh_tuple((
+                wh_var_i(self.slices.0 as i64),
+                wh_var_i(self.slices.1 as i64),
+                wh_var_i(self.slices.2 as i64),
+                wh_var_i(self.slices.3 as i64),
+            )),
+        ));
+        Box::new(writer)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SpriteIdx(HashMap<String, i32>);
+
+impl Parsable for SpriteIdx {
+    fn parse(i: &[u8]) -> IResult<&[u8], Self> {
+        map(
+            length_count(h_var_u, tuple((h_var_string, h_var_u))),
+            |entries| {
+                let mut map = HashMap::new();
+                for (k, v) in entries {
+                    map.insert(k, v as i32);
+                }
+                SpriteIdx(map)
+            },
+        )(i)
+    }
+}
+
+impl Writable for SpriteIdx {
+    fn write<'a>(&'a self) -> Box<dyn SerializeFn<Vec<u8>> + 'a> {
+        let writer = wh_tuple((
+            w_le_u32(self.0.len() as u32),
+            wh_all(
+                self.0
+                    .iter()
+                    .map(|(k, v)| wh_tuple((wh_var_string(k), wh_var_i(*v as i64)))),
+            ),
+        ));
+        Box::new(writer)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -109,13 +195,26 @@ pub struct FrameTag {
     pub from: i32,
 }
 
-pub fn frame_tag_parser(i: &[u8]) -> IResult<&[u8], FrameTag> {
-    map(
-        tuple((h_var_string, h_var_i, h_var_i)),
-        |(name, to, from)| FrameTag {
-            name,
-            to: to as i32,
-            from: from as i32,
-        },
-    )(i)
+impl Parsable for FrameTag {
+    fn parse(i: &[u8]) -> IResult<&[u8], Self> {
+        map(
+            tuple((h_var_string, h_var_i, h_var_i)),
+            |(name, to, from)| FrameTag {
+                name,
+                to: to as i32,
+                from: from as i32,
+            },
+        )(i)
+    }
+}
+
+impl Writable for FrameTag {
+    fn write<'a>(&'a self) -> Box<dyn SerializeFn<Vec<u8>> + 'a> {
+        let writer = wh_tuple((
+            wh_var_string(&self.name),
+            wh_var_i(self.to as i64),
+            wh_var_i(self.from as i64),
+        ));
+        Box::new(writer)
+    }
 }

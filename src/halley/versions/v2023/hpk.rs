@@ -6,12 +6,13 @@ use super::{
             primitives::{h_pos_size, h_string},
         },
     },
-    animation::animation_parser,
+    animation::Animation,
     hlif::hlif_parser,
-    spritesheet::spritesheet_parser,
+    spritesheet::SpriteSheet,
 };
 use crate::halley::versions::common::{
-    hpk::{HalleyPackData, Writable},
+    config::ConfigFile,
+    hpk::{pack_transform, unpack_transform, HalleyPackData, Writable},
     primitives::{wh_pos_size, wh_string},
 };
 use cookie_factory::{
@@ -135,38 +136,30 @@ impl HpkSectionUnpackable for HpkSectionV2023 {
     }
 
     fn modify_file_on_unpack<'a>(&self, i: &'a [u8]) -> Vec<u8> {
-        // match self.asset_type {
-        //     AssetTypeV2023::SPRITESHEET | AssetTypeV2023::ANIMATION | AssetTypeV2023::CONFIG => {
-        //         //println!("asset_type: {:?}", self.asset_type);
-        //         //println!("i: {:x?}", &i[0..min(3000, i.len())]);
-        //     }
-        //     _ => {}
-        // }
-
-        let j = match self.asset_type {
-            AssetTypeV2023::SPRITESHEET => match spritesheet_parser(i) {
-                Ok((_, spritesheet)) => json5::to_string(&spritesheet).unwrap(),
-                Err(err) => {
-                    println!("parse error: {:#?}", err);
-                    return i.to_owned();
-                }
-            },
-            AssetTypeV2023::ANIMATION => {
-                let (_, animation) = animation_parser(i).unwrap();
-                json5::to_string(&animation).unwrap()
-            }
+        match self.asset_type {
+            AssetTypeV2023::SPRITESHEET => unpack_transform::<SpriteSheet, SpriteSheet>(i, None),
+            AssetTypeV2023::ANIMATION => unpack_transform::<Animation, Animation>(i, None),
             AssetTypeV2023::CONFIG => {
-                let (_, config) = h_config_file(i).unwrap();
-                json5::to_string(&config).unwrap()
+                unpack_transform::<ConfigFile, ConfigNode>(i, Some(|c| c.root))
             }
-            // AssetTypeV2023::TEXTURE => {
-            //     let (_, texture) = hlif_parser(i).unwrap();
-            //     texture.to_vec()
-            // }
             _ => return i.to_owned(),
-        };
+        }
+    }
 
-        j.into_bytes()
+    fn modify_file_on_repack(&self, i: &[u8]) -> Vec<u8> {
+        match self.asset_type {
+            AssetTypeV2023::SPRITESHEET => pack_transform::<SpriteSheet, SpriteSheet>(i, None),
+            AssetTypeV2023::ANIMATION => pack_transform::<Animation, Animation>(i, None),
+            AssetTypeV2023::CONFIG => pack_transform::<ConfigFile, ConfigNode>(
+                i,
+                Some(|t| ConfigFile {
+                    v: 2,
+                    store_file_position: true,
+                    root: t,
+                }),
+            ),
+            _ => i.to_owned(),
+        }
     }
 }
 

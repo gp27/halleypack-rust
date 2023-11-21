@@ -1,5 +1,16 @@
-use std::collections::HashMap;
-
+use crate::halley::versions::{
+    common::{
+        hpk::{Parsable, Writable},
+        primitives::{h_bool, h_string, wh_bool, wh_string},
+    },
+    v2020::animation::{Direction, Frame},
+};
+use cookie_factory::{
+    bytes::{le_i32 as w_le_i32, le_u32 as w_le_u32},
+    multi::all as wh_all,
+    sequence::tuple as wh_tuple,
+    SerializeFn,
+};
 use nom::{
     combinator::map,
     multi::length_count,
@@ -8,10 +19,9 @@ use nom::{
     IResult,
 };
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
-use super::super::common::primitives::{h_bool, h_string};
-
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Animation {
     pub name: String,
     pub spritesheet: String,
@@ -21,46 +31,47 @@ pub struct Animation {
     pub action_points: Vec<ActionPoint>,
 }
 
-pub fn animation_parser(i: &[u8]) -> IResult<&[u8], Animation> {
-    map(
-        tuple((
-            h_string,
-            h_string,
-            h_string,
-            length_count(le_u32, sequence_parser),
-            length_count(le_u32, direction_parser),
-            length_count(le_u32, action_point_parser),
-        )),
-        |(name, spritesheet, material, sequences, directions, action_points)| Animation {
-            name,
-            spritesheet,
-            material,
-            sequences,
-            directions,
-            action_points,
-        },
-    )(i)
+impl Parsable for Animation {
+    fn parse(i: &[u8]) -> IResult<&[u8], Self> {
+        map(
+            tuple((
+                h_string,
+                h_string,
+                h_string,
+                length_count(le_u32, Sequence::parse),
+                length_count(le_u32, Direction::parse),
+                length_count(le_u32, ActionPoint::parse),
+            )),
+            |(name, spritesheet, material, sequences, directions, action_points)| Animation {
+                name,
+                spritesheet,
+                material,
+                sequences,
+                directions,
+                action_points,
+            },
+        )(i)
+    }
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct Frame {
-    pub image_name: String,
-    pub frame_number: i32,
-    pub duration: i32,
+impl Writable for Animation {
+    fn write<'a>(&'a self) -> Box<dyn SerializeFn<Vec<u8>> + 'a> {
+        let writer = wh_tuple((
+            wh_string(&self.name),
+            wh_string(&self.spritesheet),
+            wh_string(&self.material),
+            w_le_u32(self.sequences.len() as u32),
+            wh_all(self.sequences.iter().map(|f| f.write())),
+            w_le_u32(self.directions.len() as u32),
+            wh_all(self.directions.iter().map(|f| f.write())),
+            w_le_u32(self.action_points.len() as u32),
+            wh_all(self.action_points.iter().map(|f| f.write())),
+        ));
+        Box::new(writer)
+    }
 }
 
-pub fn frame_parser(i: &[u8]) -> IResult<&[u8], Frame> {
-    map(
-        tuple((h_string, le_i32, le_i32)),
-        |(image_name, frame_number, duration)| Frame {
-            image_name,
-            frame_number,
-            duration,
-        },
-    )(i)
-}
-
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Sequence {
     pub frames: Vec<Frame>,
     pub name: String,
@@ -70,74 +81,92 @@ pub struct Sequence {
     pub fallback: bool,
 }
 
-pub fn sequence_parser(i: &[u8]) -> IResult<&[u8], Sequence> {
-    map(
-        tuple((
-            length_count(le_u32, frame_parser),
-            h_string,
-            le_i32,
-            h_bool,
-            h_bool,
-            h_bool,
-        )),
-        |(frames, name, id, is_loop, no_flip, fallback)| Sequence {
-            frames,
-            name,
-            id: id as i32,
-            is_loop,
-            no_flip,
-            fallback,
-        },
-    )(i)
+impl Parsable for Sequence {
+    fn parse(i: &[u8]) -> IResult<&[u8], Self> {
+        map(
+            tuple((
+                length_count(le_u32, Frame::parse),
+                h_string,
+                le_i32,
+                h_bool,
+                h_bool,
+                h_bool,
+            )),
+            |(frames, name, id, is_loop, no_flip, fallback)| Sequence {
+                frames,
+                name,
+                id: id as i32,
+                is_loop,
+                no_flip,
+                fallback,
+            },
+        )(i)
+    }
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct Direction {
-    pub name: String,
-    pub filename: String,
-    pub id: i32,
-    pub flip: bool,
+impl Writable for Sequence {
+    fn write<'a>(&'a self) -> Box<dyn SerializeFn<Vec<u8>> + 'a> {
+        let writer = wh_tuple((
+            w_le_u32(self.frames.len() as u32),
+            wh_all(self.frames.iter().map(|f| f.write())),
+            wh_string(&self.name),
+            w_le_i32(self.id),
+            wh_bool(self.is_loop),
+            wh_bool(self.no_flip),
+            wh_bool(self.fallback),
+        ));
+        Box::new(writer)
+    }
 }
 
-pub fn direction_parser(i: &[u8]) -> IResult<&[u8], Direction> {
-    map(
-        tuple((h_string, h_string, le_i32, h_bool)),
-        |(name, filename, id, flip)| Direction {
-            name,
-            filename,
-            id,
-            flip,
-        },
-    )(i)
-}
-
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ActionPoint {
     pub name: String,
     pub id: i32,
     pub points: HashMap<(i32, i32, i32), (i32, i32)>,
 }
 
-pub fn action_point_parser(i: &[u8]) -> IResult<&[u8], ActionPoint> {
-    map(
-        tuple((
-            h_string,
-            le_i32,
-            length_count(
-                le_u32,
-                tuple((tuple((le_i32, le_i32, le_i32)), tuple((le_i32, le_i32)))),
-            ),
-        )),
-        |(name, id, points)| {
-            let mut map = HashMap::new();
-            for ((x, y, z), (px, py)) in points {
-                map.insert((x, y, z), (px, py));
-            }
-            ActionPoint {
-                name,
-                id,
-                points: map,
-            }
-        },
-    )(i)
+impl Parsable for ActionPoint {
+    fn parse(i: &[u8]) -> IResult<&[u8], Self> {
+        map(
+            tuple((
+                h_string,
+                le_i32,
+                length_count(
+                    le_u32,
+                    tuple((tuple((le_i32, le_i32, le_i32)), tuple((le_i32, le_i32)))),
+                ),
+            )),
+            |(name, id, points)| {
+                let mut map = HashMap::new();
+                for ((x, y, z), (px, py)) in points {
+                    map.insert((x, y, z), (px, py));
+                }
+                ActionPoint {
+                    name,
+                    id,
+                    points: map,
+                }
+            },
+        )(i)
+    }
+}
+impl Writable for ActionPoint {
+    fn write<'a>(&'a self) -> Box<dyn SerializeFn<Vec<u8>> + 'a> {
+        let writer = wh_tuple((
+            wh_string(&self.name),
+            w_le_i32(self.id),
+            w_le_u32(self.points.len() as u32),
+            wh_all(self.points.iter().map(|((x, y, z), (px, py))| {
+                wh_tuple((wh_tuple((
+                    w_le_i32(*x),
+                    w_le_i32(*y),
+                    w_le_i32(*z),
+                    w_le_i32(*px),
+                    w_le_i32(*py),
+                )),))
+            })),
+        ));
+        Box::new(writer)
+    }
 }

@@ -22,7 +22,7 @@ use std::collections::HashMap;
 pub struct SpriteSheet {
     pub name: String,
     pub sprites: Vec<Sprite>,
-    pub sprite_idx: HashMap<String, i32>,
+    pub sprite_idx: SpriteIdx,
     pub frame_tags: Vec<FrameTag>,
 }
 
@@ -32,7 +32,7 @@ impl Parsable for SpriteSheet {
             tuple((
                 h_string,
                 length_count(le_u32, Sprite::parse),
-                sprite_idx_parser,
+                SpriteIdx::parse,
                 length_count(le_u32, FrameTag::parse),
             )),
             |(name, sprites, sprite_idx, frame_tags)| SpriteSheet {
@@ -51,7 +51,7 @@ impl Writable for SpriteSheet {
             wh_string(&self.name),
             w_le_u32(self.sprites.len() as u32),
             wh_all(self.sprites.iter().map(|s| s.write())),
-            sprite_idx_writer(&self.sprite_idx),
+            self.sprite_idx.write(),
             w_le_u32(self.frame_tags.len() as u32),
             wh_all(self.frame_tags.iter().map(|t| t.write())),
         ));
@@ -129,28 +129,33 @@ impl Writable for Sprite {
     }
 }
 
-fn sprite_idx_parser(i: &[u8]) -> IResult<&[u8], HashMap<String, i32>> {
-    length_count(le_u32, tuple((h_string, le_i32)))(i).map(|(i, entries)| {
-        let mut map = HashMap::new();
-        for (k, v) in entries {
-            map.insert(k, v);
-        }
-        (i, map)
-    })
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SpriteIdx(HashMap<String, i32>);
+
+impl Parsable for SpriteIdx {
+    fn parse(i: &[u8]) -> IResult<&[u8], Self> {
+        map(length_count(le_u32, tuple((h_string, le_i32))), |entries| {
+            let mut map = HashMap::new();
+            for (k, v) in entries {
+                map.insert(k, v);
+            }
+            SpriteIdx(map)
+        })(i)
+    }
 }
 
-fn sprite_idx_writer<'a>(
-    sprite_idx: &'a HashMap<String, i32>,
-) -> Box<dyn SerializeFn<Vec<u8>> + 'a> {
-    let writer = wh_tuple((
-        w_le_u32(sprite_idx.len() as u32),
-        wh_all(
-            sprite_idx
-                .iter()
-                .map(|(k, v)| wh_tuple((wh_string(k), w_le_i32(*v)))),
-        ),
-    ));
-    Box::new(writer)
+impl Writable for SpriteIdx {
+    fn write<'a>(&'a self) -> Box<dyn SerializeFn<Vec<u8>> + 'a> {
+        let writer = wh_tuple((
+            w_le_u32(self.0.len() as u32),
+            wh_all(
+                self.0
+                    .iter()
+                    .map(|(k, v)| wh_tuple((wh_string(k), w_le_i32(*v)))),
+            ),
+        ));
+        Box::new(writer)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]

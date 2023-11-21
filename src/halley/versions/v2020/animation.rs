@@ -64,8 +64,8 @@ impl Writable for Animation {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Frame {
-    pub imagename: String,
-    pub frame: i32,
+    pub image_name: String,
+    pub frame_number: i32,
     pub duration: i32,
 }
 
@@ -74,8 +74,8 @@ impl Parsable for Frame {
         map(
             tuple((h_string, le_i32, le_i32)),
             |(imagename, frame, duration)| Frame {
-                imagename,
-                frame,
+                image_name: imagename,
+                frame_number: frame,
                 duration,
             },
         )(i)
@@ -85,8 +85,8 @@ impl Parsable for Frame {
 impl Writable for Frame {
     fn write<'a>(&'a self) -> Box<dyn SerializeFn<Vec<u8>> + 'a> {
         let writer = wh_tuple((
-            wh_string(&self.imagename),
-            w_le_i32(self.frame),
+            wh_string(&self.image_name),
+            w_le_i32(self.frame_number),
             w_le_i32(self.duration),
         ));
         Box::new(writer)
