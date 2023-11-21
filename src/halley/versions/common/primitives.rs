@@ -1,5 +1,5 @@
 use cookie_factory::{
-    bytes::{le_i32 as w_le_i32, le_i8 as w_le_i8},
+    bytes::{le_i8 as w_le_i8, le_u32 as w_le_u32},
     combinator::slice as w_slice,
     multi::all as w_all,
     sequence::tuple as w_tuple,
@@ -33,7 +33,7 @@ pub fn wh_hashmap<'a, W: Write + 'a>(
         .iter()
         .map(|(k, v)| w_tuple((wh_string(k), wh_string(v))));
 
-    w_tuple((w_le_i32(hashmap.len() as i32), w_all(entries)))
+    w_tuple((w_le_u32(hashmap.len() as u32), w_all(entries)))
 }
 
 pub fn h_pos_size(i: &[u8]) -> IResult<&[u8], (usize, usize)> {
@@ -55,7 +55,7 @@ pub fn h_string(i: &[u8]) -> IResult<&[u8], String> {
 
 pub fn wh_string<W: Write>(str: &String) -> impl SerializeFn<W> {
     let len = str.len();
-    w_tuple((w_le_i32(len as i32), w_slice(str.clone())))
+    w_tuple((w_le_u32(len as u32), w_slice(str.clone())))
 }
 
 pub fn h_var_string(i: &[u8]) -> IResult<&[u8], String> {
@@ -96,11 +96,18 @@ pub fn h_u32(i: &[u8]) -> IResult<&[u8], u32> {
 }
 
 pub fn h_var_i(i: &[u8]) -> IResult<&[u8], i64> {
-    map(var_u64(true), |(v, _)| i64::from_le_bytes(v.to_le_bytes()))(i)
+    map(var_u64(true), |(v, sign)| {
+        let v = v as i64;
+        if sign {
+            v
+        } else {
+            -v
+        }
+    })(i)
 }
 
 pub fn wh_var_i(v: i64) -> impl SerializeFn<Vec<u8>> {
-    w_var_u64(Some(v >= 0), v as u64)
+    w_var_u64(Some(v >= 0), v.abs() as u64)
 }
 
 pub fn h_var_u(i: &[u8]) -> IResult<&[u8], u64> {
@@ -121,7 +128,7 @@ pub fn var_u64(is_signed: bool) -> impl Fn(&[u8]) -> IResult<&[u8], (u64, bool)>
             let mut v: u64 = 0;
             let mut sign = false;
 
-            for i in 0..header_bits {
+            for i in 0..n_bytes {
                 let byte_mask: u64 = (1 << bits_available) - 1;
                 v |= ((u64::from(vec[i])) & byte_mask) << bits_read;
                 bits_read += bits_available;
@@ -129,11 +136,13 @@ pub fn var_u64(is_signed: bool) -> impl Fn(&[u8]) -> IResult<&[u8], (u64, bool)>
             }
 
             if is_signed {
-                let size_pos = (n_bytes as i32) * 7 + (if n_bytes == 9 { 0 } else { -1 });
-                let size_mask: u64 = 1 << size_pos;
-                sign = (v & size_mask) != 0;
-                v = v & !size_mask;
+                let sign_pos =
+                    ((n_bytes as i32) * 7 + (if n_bytes == 9 { 0 } else { -1 })) as usize;
+                let sign_mask = 1 << sign_pos;
+                sign = (v & sign_mask) != 0;
+                v &= !sign_mask;
             }
+
             (v, sign)
         })(i)
     }
@@ -143,7 +152,7 @@ pub fn w_var_u64(is_signed: Option<bool>, v: u64) -> impl SerializeFn<Vec<u8>> {
     let n_bits = if v == u64::MAX {
         64
     } else {
-        std::cmp::max(1, (v as f64).log2().ceil() as usize)
+        std::cmp::max(1, ((v + 1) as f64).log2().ceil() as usize)
             + (if is_signed.is_some() { 1 } else { 0 })
     };
 
@@ -153,15 +162,15 @@ pub fn w_var_u64(is_signed: Option<bool>, v: u64) -> impl SerializeFn<Vec<u8>> {
     let mut to_write = v;
     match is_signed {
         Some(sign) => {
+            let sign_pos = ((n_bytes as i32) * 7 + (if n_bytes == 9 { 0 } else { -1 })) as usize;
             let sign = if sign { 1 } else { 0 };
-            let sign_pos = (n_bytes as i32) * 7 + (if n_bytes == 9 { 0 } else { -1 });
             to_write |= sign << sign_pos;
         }
         None => {}
     }
 
     let header_bits = n_bytes;
-    bytes[0] = (255 ^ ((1 << (9 - header_bits)) - 1)) as u8;
+    bytes[0] = 255 ^ ((1 << (9 - header_bits)) - 1) as u8;
 
     let mut bits_available = 8 - std::cmp::min(header_bits, 8);
     let mut bits_to_write = n_bits;
@@ -176,6 +185,8 @@ pub fn w_var_u64(is_signed: Option<bool>, v: u64) -> impl SerializeFn<Vec<u8>> {
         pos += 1;
         bits_to_write -= n_bits;
     }
+
+    bytes.truncate(pos);
 
     w_slice(bytes)
 }
