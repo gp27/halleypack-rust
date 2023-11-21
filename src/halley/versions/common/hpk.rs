@@ -101,14 +101,15 @@ pub trait HpkSectionUnpackable {
         ".ukn"
     }
 
-    fn get_file_name_extension(&self, compression: Option<String>) -> &str {
-        match compression {
-            Some(compression) => match compression.as_str() {
-                "png" => ".png",
-                _ => "",
-            },
-            None => "",
-        }
+    fn get_file_name_extension(&self, _compression: Option<String>) -> &str {
+        ""
+        // match compression {
+        //     Some(compression) => match compression.as_str() {
+        //         "png" => ".png",
+        //         _ => "",
+        //     },
+        //     None => "",
+        // }
     }
 
     fn modify_file_on_unpack(&self, i: &[u8]) -> Vec<u8> {
