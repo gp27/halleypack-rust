@@ -236,7 +236,7 @@ fn wh_confignode_layer<'a>(
                 wh_all(seq.iter().map(|n| wh_confignode_deep(n))),
             ))),
         ),
-        ConfigNode::Float(f) => (ConfigNodeType::Int, Box::new(w_le_f32(*f))),
+        ConfigNode::Float(f) => (ConfigNodeType::Float, Box::new(w_le_f32(*f))),
         ConfigNode::Int2((i1, i2)) => (
             ConfigNodeType::Int2,
             Box::new(wh_tuple((w_le_i32(*i1), w_le_i32(*i2)))),
