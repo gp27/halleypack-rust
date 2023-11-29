@@ -20,7 +20,6 @@ pub fn decompress(data: &[u8], compression: &str) -> Vec<u8> {
             inflated_data
         }
         "lz4" => {
-            //println!("LZ4 data: {:x?}", &raw_data[0..min(200, raw_data.len())]);
             let (deflated_data, (_, size, _header)) =
                 tuple((tag(b"LZ4\0"), h_i32, take(0 as usize)))(data).unwrap();
 
@@ -50,9 +49,13 @@ pub fn compress(data: &[u8], compression: &str) -> Vec<u8> {
             let prefix_len: usize = LZ4_MAGIC.len();
             let mut compressed = vec![0; prefix_len + bound];
             compressed.splice(0..prefix_len, LZ4_MAGIC.to_vec());
-            let compressed_size =
-                lz4::block::compress_to_buffer(data, None, true, &mut compressed[prefix_len..])
-                    .expect("Could not compress LZ4 data!");
+            let compressed_size = lz4::block::compress_to_buffer(
+                data,
+                Some(lz4::block::CompressionMode::HIGHCOMPRESSION(9)),
+                true,
+                &mut compressed[prefix_len..],
+            )
+            .expect("Could not compress LZ4 data!");
             compressed.truncate(prefix_len + compressed_size);
             compressed
         }
