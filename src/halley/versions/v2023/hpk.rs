@@ -7,8 +7,7 @@ use super::{
         },
     },
     animation::Animation,
-    hlif::hlif_parser,
-    spritesheet::SpriteSheet,
+    spritesheet::{SpriteResource, SpriteSheet},
 };
 use crate::halley::versions::common::{
     config::ConfigFile,
@@ -140,6 +139,7 @@ impl HpkSectionUnpackable for HpkSectionV2023 {
     fn modify_file_on_unpack<'a>(&self, i: &'a [u8]) -> Vec<u8> {
         match self.asset_type {
             AssetTypeV2023::SPRITESHEET => unpack_transform::<SpriteSheet, SpriteSheet>(i, None),
+            AssetTypeV2023::SPRITE => unpack_transform::<SpriteResource, SpriteResource>(i, None),
             AssetTypeV2023::ANIMATION => unpack_transform::<Animation, Animation>(i, None),
             AssetTypeV2023::CONFIG => {
                 unpack_transform::<ConfigFile, ConfigNode>(i, Some(|c| c.root))
@@ -151,6 +151,7 @@ impl HpkSectionUnpackable for HpkSectionV2023 {
     fn modify_file_on_repack(&self, i: &[u8]) -> Vec<u8> {
         match self.asset_type {
             AssetTypeV2023::SPRITESHEET => pack_transform::<SpriteSheet, SpriteSheet>(i, None),
+            AssetTypeV2023::SPRITE => pack_transform::<SpriteResource, SpriteResource>(i, None),
             AssetTypeV2023::ANIMATION => pack_transform::<Animation, Animation>(i, None),
             AssetTypeV2023::CONFIG => pack_transform::<ConfigFile, ConfigNode>(
                 i,

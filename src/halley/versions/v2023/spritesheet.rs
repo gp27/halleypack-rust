@@ -30,7 +30,7 @@ pub struct SpriteSheet {
     pub sprite_idx: SpriteIdx,
     pub frame_tags: Vec<FrameTag>,
     pub def_material_name: Option<String>,
-    //pub palette_name: Option<String>,
+    pub palette_name: Option<String>,
 }
 
 impl Parsable for SpriteSheet {
@@ -43,19 +43,22 @@ impl Parsable for SpriteSheet {
                 SpriteIdx::parse,
                 length_count(h_var_u, FrameTag::parse),
                 cond(v >= 1, h_var_string),
-                //cond(v >= 2, h_var_string), // not yet implemented in this version
+                cond(v >= 2, h_var_string),
             ))
         });
 
         map(
             versioned,
-            |(v, name, sprites, sprite_idx, frame_tags, def_material_name)| SpriteSheet {
-                v: v.unwrap_or(0),
-                name,
-                sprites,
-                sprite_idx,
-                frame_tags,
-                def_material_name,
+            |(v, name, sprites, sprite_idx, frame_tags, def_material_name, palette_name)| {
+                SpriteSheet {
+                    v: v.unwrap_or(0),
+                    name,
+                    sprites,
+                    sprite_idx,
+                    frame_tags,
+                    def_material_name,
+                    palette_name,
+                }
             },
         )(i)
     }
@@ -74,6 +77,10 @@ impl Writable for SpriteSheet {
             wh_cond(
                 self.v >= 1,
                 wh_var_string(&self.def_material_name.clone().unwrap()),
+            ),
+            wh_cond(
+                self.v >= 2,
+                wh_var_string(&self.palette_name.clone().unwrap()),
             ),
         ));
         Box::new(writer)
@@ -218,6 +225,27 @@ impl Writable for FrameTag {
             wh_var_i(self.to as i64),
             wh_var_i(self.from as i64),
         ));
+        Box::new(writer)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SpriteResource {
+    pub name: String,
+    pub idx: u64,
+}
+
+impl Parsable for SpriteResource {
+    fn parse(i: &[u8]) -> IResult<&[u8], Self> {
+        map(tuple((h_var_string, h_var_u)), |(name, idx)| {
+            SpriteResource { name, idx }
+        })(i)
+    }
+}
+
+impl Writable for SpriteResource {
+    fn write<'a>(&'a self) -> Box<dyn SerializeFn<Vec<u8>> + 'a> {
+        let writer = wh_tuple((wh_var_string(&self.name), wh_var_u(self.idx)));
         Box::new(writer)
     }
 }
