@@ -126,11 +126,13 @@ impl HpkSectionUnpackable for HpkSectionV2023 {
     fn get_unknown_file_type_ending(&self) -> &str {
         match self.asset_type {
             AssetTypeV2023::SPRITESHEET => ".sheet.json",
+            AssetTypeV2023::SPRITE => ".sprite.json",
             AssetTypeV2023::ANIMATION => ".anim.json",
             AssetTypeV2023::CONFIG => ".config.json",
             AssetTypeV2023::GAMEPROPERTIES => ".game.json",
             AssetTypeV2023::AUDIOOBJECT => ".audioobject.json",
             AssetTypeV2023::AUDIOEVENT => ".audioevent.json",
+            AssetTypeV2023::AUDIOCLIP | AssetTypeV2023::BINARY | AssetTypeV2023::TEXTURE => "",
             _ => ".ukn",
         }
     }
