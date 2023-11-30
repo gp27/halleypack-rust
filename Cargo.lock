@@ -57,6 +57,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyhow"
+version = "1.0.75"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4668cab20f66d8d020e1fbc0ebe47217433c1b6c8f2040faf858554e394ace6"
+
+[[package]]
 name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -373,6 +379,7 @@ dependencies = [
 name = "halleypack"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "base64",
  "clap",
  "cookie-factory",
@@ -389,6 +396,7 @@ dependencies = [
  "num-traits",
  "rand",
  "serde",
+ "thiserror",
  "toml",
  "walkdir",
 ]

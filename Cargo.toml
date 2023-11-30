@@ -26,3 +26,5 @@ walkdir = "2.4.0"
 serde = { version = "1.0.188", features = ["derive"] }
 json5 = "0.4.1"
 toml = { version = "0.8.8", features = ["preserve_order"] }
+thiserror = "1.0.50"
+anyhow = "1.0.75"
