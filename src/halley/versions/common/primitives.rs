@@ -97,17 +97,18 @@ pub fn h_u32(i: &[u8]) -> IResult<&[u8], u32> {
 
 pub fn h_var_i(i: &[u8]) -> IResult<&[u8], i64> {
     map(var_u64(true), |(v, sign)| {
-        let v = v as i64;
+        let v = i64::from_le_bytes(v.to_le_bytes());
         if sign {
-            v
+            -v - 1
         } else {
-            -v
+            v
         }
     })(i)
 }
 
 pub fn wh_var_i(v: i64) -> impl SerializeFn<Vec<u8>> {
-    w_var_u64(Some(v >= 0), v.abs() as u64)
+    let vv = if v >= 0 { v } else { -(v + 1) };
+    w_var_u64(Some(v < 0), u64::from_le_bytes(vv.to_le_bytes()))
 }
 
 pub fn h_var_u(i: &[u8]) -> IResult<&[u8], u64> {
