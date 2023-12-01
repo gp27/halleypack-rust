@@ -9,10 +9,16 @@ use super::{
     animation::Animation,
     spritesheet::{SpriteResource, SpriteSheet},
 };
-use crate::halley::versions::common::{
-    config::ConfigFile,
-    hpk::{pack_transform, unpack_transform, HalleyPackData, Writable},
-    primitives::{wh_pos_size, wh_string},
+use crate::halley::{
+    assets::property_file,
+    versions::common::{
+        config::ConfigFile,
+        hpk::{
+            make_asset_type, pack_transform, unpack_transform, HalleyPackData,
+            HalleyPackParseError, Writable,
+        },
+        primitives::{wh_pos_size, wh_string},
+    },
 };
 use cookie_factory::{
     bytes::{le_i32 as w_le_i32, le_u32 as w_le_u32},
@@ -21,7 +27,7 @@ use cookie_factory::{
     SerializeFn,
 };
 use nom::{
-    combinator::map,
+    combinator::{map, map_res},
     multi::length_count,
     number::complete::{le_i32, le_u32},
     sequence::tuple,
@@ -77,16 +83,17 @@ where
 }
 
 impl HpkSection for HpkSectionV2023 {
-    fn new(asset_type: u32) -> Self {
-        HpkSectionV2023 {
-            asset_type: num::FromPrimitive::from_u32(asset_type).unwrap(),
-            section_index: asset_type as i32,
+    fn new(section_index: i32) -> Result<Self, anyhow::Error> {
+        let asset_type = make_asset_type(section_index)?;
+        Ok(HpkSectionV2023 {
+            asset_type,
+            section_index,
             assets: vec![],
-        }
+        })
     }
 
-    fn asset_type(&self) -> u32 {
-        num_traits::ToPrimitive::to_u32(&self.asset_type).unwrap()
+    fn asset_type(&self) -> i32 {
+        num_traits::ToPrimitive::to_i32(&self.asset_type).unwrap()
     }
 
     fn assets(&self) -> Vec<Box<&dyn HpkAsset>> {
@@ -96,12 +103,15 @@ impl HpkSection for HpkSectionV2023 {
             .collect()
     }
 
-    fn add_asset(&mut self, pack: &mut dyn HalleyPack, path: &Path, relative_path: &Path) {
-        let (config, data) =
-            super::super::super::assets::property_file::read_with_file_data::<ConfigNode>(path)
-                .unwrap();
+    fn add_asset(
+        &mut self,
+        pack: &mut dyn HalleyPack,
+        path: &Path,
+        relative_path: &Path,
+    ) -> Result<(), anyhow::Error> {
+        let (config, data) = property_file::read_with_file_data::<ConfigNode>(path)?;
 
-        let data = self.modify_file_on_repack(&data);
+        let data = self.modify_file_on_repack(&data)?;
 
         let name = self.get_asset_name(relative_path.to_str().unwrap(), get_compression(&config));
 
@@ -118,6 +128,7 @@ impl HpkSection for HpkSectionV2023 {
         asset.set_pos_size(pos, size);
 
         self.assets.push(asset);
+        Ok(())
     }
 }
 
@@ -136,7 +147,7 @@ impl HpkSectionUnpackable for HpkSectionV2023 {
         }
     }
 
-    fn modify_file_on_unpack<'a>(&self, i: &'a [u8]) -> Vec<u8> {
+    fn modify_file_on_unpack<'a>(&self, i: &'a [u8]) -> Result<Vec<u8>, anyhow::Error> {
         match self.asset_type {
             AssetTypeV2023::SPRITESHEET => unpack_transform::<SpriteSheet, SpriteSheet>(i, None),
             AssetTypeV2023::SPRITE => unpack_transform::<SpriteResource, SpriteResource>(i, None),
@@ -144,11 +155,11 @@ impl HpkSectionUnpackable for HpkSectionV2023 {
             AssetTypeV2023::CONFIG => {
                 unpack_transform::<ConfigFile, ConfigNode>(i, Some(|c| c.root))
             }
-            _ => return i.to_owned(),
+            _ => Ok(i.into()),
         }
     }
 
-    fn modify_file_on_repack(&self, i: &[u8]) -> Vec<u8> {
+    fn modify_file_on_repack(&self, i: &[u8]) -> Result<Vec<u8>, anyhow::Error> {
         match self.asset_type {
             AssetTypeV2023::SPRITESHEET => pack_transform::<SpriteSheet, SpriteSheet>(i, None),
             AssetTypeV2023::SPRITE => pack_transform::<SpriteResource, SpriteResource>(i, None),
@@ -161,19 +172,22 @@ impl HpkSectionUnpackable for HpkSectionV2023 {
                     root: t,
                 }),
             ),
-            _ => i.to_owned(),
+            _ => Ok(i.into()),
         }
     }
 }
 
 impl Parsable for HpkSectionV2023 {
     fn parse(i: &[u8]) -> IResult<&[u8], Self> {
-        map(
+        map_res(
             tuple((le_i32, le_i32, length_count(le_u32, HpkAssetV2023::parse))),
-            |(asset_type, section_index, assets)| HpkSectionV2023 {
-                asset_type: num::FromPrimitive::from_i32(asset_type).unwrap(),
-                section_index,
-                assets,
+            |(asset_type, section_index, assets)| {
+                let asset_type = make_asset_type(asset_type)?;
+                Ok::<HpkSectionV2023, HalleyPackParseError>(HpkSectionV2023 {
+                    asset_type,
+                    section_index,
+                    assets,
+                })
             },
         )(i)
     }
@@ -218,8 +232,8 @@ impl HpkAsset for HpkAssetV2023 {
         self.size = size;
     }
 
-    fn serialize_properties(&self, filename: &std::path::Path) -> Option<std::io::Error> {
-        super::super::super::assets::property_file::write(filename, &self.config).err()
+    fn serialize_properties(&self, filename: &std::path::Path) -> Result<(), anyhow::Error> {
+        super::super::super::assets::property_file::write(filename, &self.config)
     }
 
     fn get_asset_compression(&self) -> Option<String> {

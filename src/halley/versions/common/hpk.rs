@@ -1,11 +1,14 @@
 use super::hpk_parse::parse_hpk;
 use crate::halley::assets::{compression, utils::pathify, utils::unpathify};
+use anyhow::anyhow;
 use cookie_factory::{SerializeFn, WriteContext};
 use derivative::Derivative;
 use derive_new::new;
 use nom::IResult;
+use num_traits::FromPrimitive;
 use serde::{de::Deserialize, Serialize};
 use std::{fmt::Debug, path::Path};
+use thiserror::Error;
 
 pub trait HalleyPack: Writable + Debug {
     fn load<Section>(
@@ -78,12 +81,17 @@ pub trait HpkSection
 where
     Self: HpkSectionUnpackable + Writable + Debug,
 {
-    fn new(asset_type: u32) -> Self
+    fn new(asset_type: i32) -> Result<Self, anyhow::Error>
     where
         Self: Sized;
-    fn asset_type(&self) -> u32;
+    fn asset_type(&self) -> i32;
     fn assets(&self) -> Vec<Box<&dyn HpkAsset>>;
-    fn add_asset(&mut self, pack: &mut dyn HalleyPack, path: &Path, relative_path: &Path);
+    fn add_asset(
+        &mut self,
+        pack: &mut dyn HalleyPack,
+        path: &Path,
+        relative_path: &Path,
+    ) -> Result<(), anyhow::Error>;
 }
 
 pub trait HpkAsset: Writable + Debug {
@@ -91,7 +99,7 @@ pub trait HpkAsset: Writable + Debug {
     fn pos(&self) -> usize;
     fn size(&self) -> usize;
     fn set_pos_size(&mut self, pos: usize, size: usize);
-    fn serialize_properties(&self, filaname: &Path) -> Option<std::io::Error>;
+    fn serialize_properties(&self, filaname: &Path) -> Result<(), anyhow::Error>;
     fn get_asset_compression(&self) -> Option<String>;
     fn get_compression(&self) -> Option<String>;
 }
@@ -112,12 +120,12 @@ pub trait HpkSectionUnpackable {
         // }
     }
 
-    fn modify_file_on_unpack(&self, i: &[u8]) -> Vec<u8> {
-        i.to_owned()
+    fn modify_file_on_unpack(&self, i: &[u8]) -> Result<Vec<u8>, anyhow::Error> {
+        Ok(i.into())
     }
 
-    fn modify_file_on_repack(&self, i: &[u8]) -> Vec<u8> {
-        i.to_owned()
+    fn modify_file_on_repack(&self, i: &[u8]) -> Result<Vec<u8>, anyhow::Error> {
+        Ok(i.into())
     }
 
     fn get_asset_filename(&self, asset: &dyn HpkAsset) -> String {
@@ -151,33 +159,46 @@ pub trait Writable {
 pub fn unpack_transform<T: Parsable + Serialize, TT: Serialize>(
     i: &[u8],
     transform: Option<fn(T) -> TT>,
-) -> Vec<u8> {
-    let (_, t) = T::parse(i).unwrap();
-    match transform {
+) -> Result<Vec<u8>, anyhow::Error> {
+    let (_, t) = T::parse(i).map_err(|err| anyhow!(err.to_string()))?;
+    let data = match transform {
         Some(transform) => json5::to_string(&transform(t)),
         None => json5::to_string(&t),
-    }
-    .unwrap()
-    .into_bytes()
+    }?
+    .into_bytes();
+
+    Ok(data)
 }
 
 pub fn pack_transform<'a, T: Writable + Deserialize<'a>, TT: Deserialize<'a> + Debug>(
     i: &'a [u8],
     transform: Option<fn(TT) -> T>,
-) -> Vec<u8> {
-    let str = std::str::from_utf8(i).unwrap();
+) -> Result<Vec<u8>, anyhow::Error> {
+    let str = std::str::from_utf8(i)?;
     let object = match transform {
         Some(transform) => {
-            let tt: TT = json5::from_str(str).unwrap();
+            let tt: TT = json5::from_str(str)?;
             transform(tt)
         }
         None => {
-            let t: T = json5::from_str(str).unwrap();
+            let t: T = json5::from_str(str)?;
             t
         }
     };
 
     let writer = object.write();
     let w = WriteContext::from(Vec::new());
-    writer(w).unwrap().write
+    Ok(writer(w)?.write)
+}
+
+#[derive(Error, Debug)]
+pub enum HalleyPackParseError {
+    #[error("Invalid asset type {0}")]
+    InvalidAssetType(i32),
+}
+
+pub fn make_asset_type<T: FromPrimitive>(v: i32) -> Result<T, HalleyPackParseError> {
+    let asset_type: T =
+        num::FromPrimitive::from_i32(v).ok_or(HalleyPackParseError::InvalidAssetType(v))?;
+    Ok::<T, HalleyPackParseError>(asset_type)
 }
