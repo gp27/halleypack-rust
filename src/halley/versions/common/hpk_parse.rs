@@ -85,7 +85,7 @@ pub fn get_encrypted_data(
     let mut key = [0; 16];
     general_purpose::STANDARD
         .decode_slice_unchecked(secret, &mut key)
-        .unwrap();
+        .expect("Secret is not a valid base64 string");
 
     let data = encrypt(data, &key, &iv);
     (data, iv)
@@ -101,7 +101,7 @@ pub fn get_decrypted_data(data: &[u8], secret: Option<&str>, iv: Option<&[u8; 16
         let mut key = [0; 16];
         general_purpose::STANDARD
             .decode_slice_unchecked(secret, &mut key)
-            .unwrap();
+            .expect("Secret is not a valid base64 string");
         decrypt(data, &key, iv)
     } else {
         data.to_vec()

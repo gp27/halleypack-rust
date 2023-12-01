@@ -6,15 +6,26 @@ use cookie_factory::{
     SerializeFn,
 };
 use nom::{
-    bytes::complete::take,
-    combinator::{map, peek},
-    error::Error,
+    combinator::{map, map_res, peek},
     multi::{length_count, length_data},
     number::complete::{le_f32, le_i32, le_i64, le_i8, le_u32, le_u64, u8},
     sequence::tuple,
     IResult,
 };
 use std::{cmp::min, collections::HashMap, io::Write};
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum PosSizeError {
+    #[error("Invalid pos/size string")]
+    InvalidPosSizeString,
+
+    #[error("Invalid pos string")]
+    InvalidPosString,
+
+    #[error("Invalid size string")]
+    InvalidSizeString,
+}
 
 pub fn h_hashmap(i: &[u8]) -> IResult<&[u8], HashMap<String, String>> {
     length_count(le_u32, tuple((h_string, h_string)))(i).map(|(i, entries)| {
@@ -37,11 +48,17 @@ pub fn wh_hashmap<'a, W: Write + 'a>(
 }
 
 pub fn h_pos_size(i: &[u8]) -> IResult<&[u8], (usize, usize)> {
-    map(h_string, |meta| {
-        let (pos_str, size_str) = meta.split_once(':').unwrap();
-        let pos = pos_str.parse::<usize>().unwrap();
-        let size = size_str.parse::<usize>().unwrap();
-        (pos, size)
+    map_res(h_string, |meta| {
+        let (pos_str, size_str) = meta
+            .split_once(':')
+            .ok_or(PosSizeError::InvalidPosSizeString)?;
+        let pos = pos_str
+            .parse::<usize>()
+            .map_err(|_| PosSizeError::InvalidPosString)?;
+        let size = size_str
+            .parse::<usize>()
+            .map_err(|_| PosSizeError::InvalidSizeString)?;
+        Ok::<(usize, usize), PosSizeError>((pos, size))
     })(i)
 }
 
@@ -50,7 +67,9 @@ pub fn wh_pos_size<W: Write>(pos: usize, size: usize) -> impl SerializeFn<W> {
 }
 
 pub fn h_string(i: &[u8]) -> IResult<&[u8], String> {
-    length_data(le_u32)(i).map(|(i, s)| (i, String::from_utf8(s.to_vec()).unwrap()))
+    map_res(length_data(le_u32), |s: &[u8]| {
+        String::from_utf8(s.to_vec())
+    })(i)
 }
 
 pub fn wh_string<W: Write>(str: &String) -> impl SerializeFn<W> {
@@ -59,7 +78,9 @@ pub fn wh_string<W: Write>(str: &String) -> impl SerializeFn<W> {
 }
 
 pub fn h_var_string(i: &[u8]) -> IResult<&[u8], String> {
-    length_data(h_var_u)(i).map(|(i, s)| (i, String::from_utf8(s.to_vec()).unwrap()))
+    map_res(length_data(h_var_u), |s: &[u8]| {
+        String::from_utf8(s.to_vec())
+    })(i)
 }
 
 pub fn wh_var_string(str: &String) -> impl SerializeFn<Vec<u8>> {
@@ -121,7 +142,8 @@ pub fn wh_var_u(v: u64) -> impl SerializeFn<Vec<u8>> {
 
 pub fn var_u64(is_signed: bool) -> impl Fn(&[u8]) -> IResult<&[u8], (u64, bool)> {
     move |i: &[u8]| {
-        map(read_var_n_bytes, |(vec, n_bytes)| {
+        map(length_data(peek_var_n_bytes), |vec| {
+            let n_bytes = vec.len();
             let header_bits = min(n_bytes, 8);
 
             let mut bits_available = 8 - header_bits;
@@ -192,19 +214,8 @@ pub fn w_var_u64(is_signed: Option<bool>, v: u64) -> impl SerializeFn<Vec<u8>> {
     w_slice(bytes)
 }
 
-fn read_var_n_bytes(i: &[u8]) -> IResult<&[u8], (&[u8], usize)> {
-    peek_var_n_bytes(i).map(|(i, n_bytes)| {
-        let (i, vec) = take::<usize, &[u8], Error<_>>(n_bytes)(i).unwrap();
-        (i, (vec, n_bytes))
-    })
-}
-
 fn peek_var_n_bytes(i: &[u8]) -> IResult<&[u8], usize> {
     map(peek(u8), |header| {
-        //let n_bytes: usize = (1..=8)
-        //     .find(|&mask| (header & (0xFF << (8 - mask))) != (0xFF << (8 - mask)))
-        //     .unwrap_or(9);
-
         let n_bytes: usize = if header & 0x80 != 0x80 {
             1
         } else if header & 0xC0 != 0xC0 {
