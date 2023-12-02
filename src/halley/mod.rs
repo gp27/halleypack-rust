@@ -1,13 +1,3 @@
-use std::{
-    fs,
-    io::{BufWriter, Write},
-    path::Path,
-};
-
-use clap::ValueEnum;
-use cookie_factory::WriteContext;
-use serde::{Deserialize, Serialize};
-
 use self::{
     assets::{
         unpack::{pack_halley_pk, unpack_halley_pk},
@@ -18,6 +8,15 @@ use self::{
         v2020::hpk::{HalleyPackV2020, HpkSectionV2020},
         v2023::hpk::{HalleyPackV2023, HpkSectionV2023},
     },
+};
+use clap::ValueEnum;
+use cookie_factory::WriteContext;
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
+use std::{
+    fs,
+    io::{BufWriter, Write},
+    path::Path,
 };
 
 pub mod assets;
@@ -34,7 +33,8 @@ pub fn unpack_assets(src: &Path, dst: &Path, pack_version: PackVersion, secret: 
     if !dst.exists() && !dat_files.is_empty() {
         fs::create_dir_all(dst).unwrap();
     }
-    for dat_file in dat_files {
+
+    dat_files.par_iter().for_each(|dat_file| {
         let filename = dat_file.file_name().unwrap().to_str().unwrap();
         let dst_file = dst.join(filename);
         if dst_file.exists() {
@@ -43,7 +43,7 @@ pub fn unpack_assets(src: &Path, dst: &Path, pack_version: PackVersion, secret: 
         fs::create_dir_all(&dst_file).unwrap();
         let pack = read_pack(&dat_file, pack_version, secret);
         unpack_halley_pk(&*pack, &dst_file).unwrap();
-    }
+    });
 }
 
 pub fn pack_assets(src: &Path, dst: &Path, pack_version: PackVersion, _secret: Option<&str>) {
@@ -51,7 +51,7 @@ pub fn pack_assets(src: &Path, dst: &Path, pack_version: PackVersion, _secret: O
     if !dst.exists() {
         panic!("Destination folder does not exist");
     }
-    for dat_folder in dat_folders {
+    dat_folders.par_iter().for_each(|dat_folder| {
         let filename = dat_folder.file_name().unwrap().to_str().unwrap();
         let dst_file = dst.join(filename);
         // if dst_file.exists() {
@@ -59,7 +59,7 @@ pub fn pack_assets(src: &Path, dst: &Path, pack_version: PackVersion, _secret: O
         // }
         let pack = pack_asset(&dat_folder, pack_version);
         write_pack(pack, &dst_file);
-    }
+    });
 }
 
 pub fn read_pack(

@@ -396,6 +396,7 @@ dependencies = [
  "num-derive",
  "num-traits",
  "rand",
+ "rayon",
  "serde",
  "serde_yaml",
  "thiserror",
