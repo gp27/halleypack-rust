@@ -126,9 +126,9 @@ impl HpkSection for HpkSectionV2020 {
 impl HpkSectionUnpackable for HpkSectionV2020 {
     fn get_unknown_file_type_ending(&self) -> &str {
         match self.asset_type {
-            AssetTypeV2020::SPRITESHEET => ".sheet.json",
-            AssetTypeV2020::ANIMATION => ".anim.json",
-            AssetTypeV2020::CONFIG => ".config.json",
+            AssetTypeV2020::SPRITESHEET => ".sheet.yaml",
+            AssetTypeV2020::ANIMATION => ".anim.yaml",
+            AssetTypeV2020::CONFIG => ".config.yaml",
             _ => ".ukn",
         }
     }

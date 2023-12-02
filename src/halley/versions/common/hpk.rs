@@ -162,8 +162,8 @@ pub fn unpack_transform<T: Parsable + Serialize, TT: Serialize>(
 ) -> Result<Vec<u8>, anyhow::Error> {
     let (_, t) = T::parse(i).map_err(|err| anyhow!(err.to_string()))?;
     let data = match transform {
-        Some(transform) => json5::to_string(&transform(t)),
-        None => json5::to_string(&t),
+        Some(transform) => serde_yaml::to_string(&transform(t)),
+        None => serde_yaml::to_string(&t),
     }?
     .into_bytes();
 
@@ -177,11 +177,11 @@ pub fn pack_transform<'a, T: Writable + Deserialize<'a>, TT: Deserialize<'a> + D
     let str = std::str::from_utf8(i)?;
     let object = match transform {
         Some(transform) => {
-            let tt: TT = json5::from_str(str)?;
+            let tt: TT = serde_yaml::from_str(str)?;
             transform(tt)
         }
         None => {
-            let t: T = json5::from_str(str)?;
+            let t: T = serde_yaml::from_str(str)?;
             t
         }
     };
