@@ -6,7 +6,7 @@ use derivative::Derivative;
 use derive_new::new;
 use nom::IResult;
 use num_traits::FromPrimitive;
-use serde::{de::Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Serialize};
 use std::{fmt::Debug, path::Path};
 use thiserror::Error;
 
@@ -170,8 +170,8 @@ pub fn unpack_transform<T: Parsable + Serialize, TT: Serialize>(
     Ok(data)
 }
 
-pub fn pack_transform<'a, T: Writable + Deserialize<'a>, TT: Deserialize<'a> + Debug>(
-    i: &'a [u8],
+pub fn pack_transform<T: Writable + DeserializeOwned, TT: DeserializeOwned + Debug>(
+    i: &[u8],
     transform: Option<fn(TT) -> T>,
 ) -> Result<Vec<u8>, anyhow::Error> {
     let str = std::str::from_utf8(i)?;
