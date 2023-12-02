@@ -58,14 +58,14 @@ pub enum ConfigNode {
     Int64(i64),
     EntityId(i64),
 
+    //#[serde(untagged)] //TODO: set untagged when https://github.com/dtolnay/serde-yaml/issues/361 is fixed
+    Sequence(Vec<ConfigNode>),
+    #[serde(untagged)]
+    Map(ConfigNodeMap),
     #[serde(untagged)]
     Int(i32),
     #[serde(untagged)]
     Float(f32),
-    #[serde(untagged)]
-    Sequence(Vec<ConfigNode>),
-    #[serde(untagged)]
-    Map(ConfigNodeMap),
     #[serde(untagged)]
     String(String),
     #[serde(untagged)]
