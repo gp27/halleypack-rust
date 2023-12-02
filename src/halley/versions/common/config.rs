@@ -42,7 +42,7 @@ pub enum ConfigNodeType {
     Bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "__node_type", content = "__node_value")]
 pub enum ConfigNode {
     Undefined,
@@ -271,4 +271,104 @@ fn wh_confignode_layer<'a>(
     };
     let node_type = num_traits::ToPrimitive::to_i32(&t).unwrap();
     Box::new(wh_tuple((w_le_u32(node_type as u32), f)))
+}
+
+#[cfg(test)]
+mod tests {
+    use indexmap::indexmap;
+    use serde::de::DeserializeOwned;
+
+    use super::*;
+
+    fn serialize_and_deserialize<'a, T: Serialize + DeserializeOwned + std::fmt::Debug>(
+        t: &'a T,
+    ) -> T {
+        let str = serde_yaml::to_string(t).unwrap();
+
+        let tt: T = serde_yaml::from_str(&str).unwrap();
+        println!("{:?}\n{}\n{:?}", t, str, &tt);
+        tt
+    }
+
+    #[test]
+    fn test_back_and_forth_config() {
+        let nodes = vec![
+            ConfigNode::Undefined,
+            ConfigNode::Del,
+            ConfigNode::Noop,
+            ConfigNode::Int(1),
+            ConfigNode::Float(2.13134),
+            ConfigNode::Float(f32::INFINITY),
+            ConfigNode::Float(f32::NEG_INFINITY),
+            ConfigNode::String(format!("hello")),
+            ConfigNode::String(format!("true")),
+            ConfigNode::String(format!("false")),
+            ConfigNode::String(format!("1")),
+            ConfigNode::String(format!("2.13134")),
+            ConfigNode::String(format!(".inf")),
+            ConfigNode::String(format!(".nan")),
+            ConfigNode::Bool(true),
+            ConfigNode::Int2((1, 2)),
+            ConfigNode::Float2((1.0, 2.0)),
+            ConfigNode::Map(indexmap! {
+                format!("a") => ConfigNode::Int(1),
+                format!("b") => ConfigNode::Int(2),
+                format!("c") => ConfigNode::Int(3),
+                format!("Undefined") => ConfigNode::Int(4),
+                format!("!Undefined") => ConfigNode::Int(4),
+            }),
+            ConfigNode::Sequence(vec![
+                ConfigNode::Int(1),
+                ConfigNode::Int(2),
+                ConfigNode::Int(3),
+                ConfigNode::Map(indexmap! {
+                    format!("a") => ConfigNode::Int(1),
+                    format!("b") => ConfigNode::Int(2),
+                    format!("c") => ConfigNode::Int(3),
+                }),
+            ]),
+            ConfigNode::Bytes((0..255).collect::<Vec<u8>>()),
+            ConfigNode::DeltaSequence((vec![ConfigNode::Int(1), ConfigNode::Int(2)], 1)),
+            ConfigNode::DeltaMap((
+                indexmap! {
+                    format!("a") => ConfigNode::Int(1),
+                    format!("b") => ConfigNode::Int(2),
+                    format!("c") => ConfigNode::Int(3),
+                },
+                1,
+            )),
+            ConfigNode::Idx((1, 2)),
+            ConfigNode::Int64(1),
+            ConfigNode::Map(indexmap! {
+                format!("widget") => ConfigNode::Map(indexmap! {
+                    format!("class") => ConfigNode::String(format!("framedImage")),
+                    format!("scrollPos") => ConfigNode::Sequence(vec![
+                        ConfigNode::Int(10),
+                        ConfigNode::Int(40),
+                    ]),
+                }),
+            }),
+            ConfigNode::Sequence(vec![
+                ConfigNode::Int(1),
+                ConfigNode::Int(2),
+                ConfigNode::Sequence(vec![
+                    ConfigNode::Int(1),
+                    ConfigNode::Int(2),
+                    ConfigNode::Int(3),
+                ]),
+            ]),
+            //ConfigNode::Float(f32::NAN),
+        ];
+
+        nodes.iter().for_each(|n| {
+            assert_eq!(*n, serialize_and_deserialize(n));
+        });
+
+        assert!(
+            match serialize_and_deserialize(&ConfigNode::Float(f32::NAN)) {
+                ConfigNode::Float(f) => f.is_nan(),
+                _ => false,
+            }
+        )
+    }
 }
