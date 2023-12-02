@@ -11,6 +11,7 @@ use cookie_factory::{
     sequence::tuple as wh_tuple,
     SerializeFn,
 };
+use indexmap::IndexMap;
 use nom::{
     combinator::map,
     multi::length_count,
@@ -19,7 +20,6 @@ use nom::{
     IResult,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Animation {
@@ -123,7 +123,7 @@ impl Writable for Sequence {
 pub struct ActionPoint {
     pub name: String,
     pub id: i32,
-    pub points: HashMap<(i32, i32, i32), (i32, i32)>,
+    pub points: IndexMap<(i32, i32, i32), (i32, i32)>,
 }
 
 impl Parsable for ActionPoint {
@@ -138,7 +138,7 @@ impl Parsable for ActionPoint {
                 ),
             )),
             |(name, id, points)| {
-                let mut map = HashMap::new();
+                let mut map = IndexMap::new();
                 for ((x, y, z), (px, py)) in points {
                     map.insert((x, y, z), (px, py));
                 }

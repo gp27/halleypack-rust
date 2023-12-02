@@ -1,19 +1,18 @@
 use super::property_file;
 use crate::halley::versions::common::hpk::{HalleyPack, HalleyPackData, HpkSection};
 use anyhow::anyhow;
-use thiserror::Error;
-
+use indexmap::IndexMap;
 use std::{
-    collections::HashMap,
     fs::{create_dir_all, File},
     io::Write,
     path::Path,
 };
+use thiserror::Error;
 use walkdir::WalkDir;
 
 static SECTION_PREFIX: &str = "section_";
 
-type SectionProps = HashMap<String, i32>;
+type SectionProps = IndexMap<String, i32>;
 
 pub fn unpack_halley_pk(pack: &dyn HalleyPack, path: &Path) -> Result<(), anyhow::Error> {
     create_dir_all(path)?;

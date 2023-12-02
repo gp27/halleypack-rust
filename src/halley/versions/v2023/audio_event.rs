@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use super::super::common::primitives::{h_bool, h_string};
 use nom::{
     combinator::map,
     multi::length_count,
@@ -8,8 +7,6 @@ use nom::{
     IResult,
 };
 use serde::{Deserialize, Serialize};
-
-use super::super::common::primitives::{h_bool, h_string};
 
 #[derive(Serialize, Deserialize)]
 pub struct AudioEvent {

@@ -8,6 +8,7 @@ use cookie_factory::{
     sequence::tuple as wh_tuple,
     SerializeFn,
 };
+use indexmap::IndexMap;
 use nom::{
     combinator::map,
     multi::length_count,
@@ -16,7 +17,6 @@ use nom::{
     IResult,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SpriteSheet {
@@ -130,12 +130,12 @@ impl Writable for Sprite {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct SpriteIdx(HashMap<String, i32>);
+pub struct SpriteIdx(IndexMap<String, i32>);
 
 impl Parsable for SpriteIdx {
     fn parse(i: &[u8]) -> IResult<&[u8], Self> {
         map(length_count(le_u32, tuple((h_string, le_i32))), |entries| {
-            let mut map = HashMap::new();
+            let mut map = IndexMap::new();
             for (k, v) in entries {
                 map.insert(k, v);
             }

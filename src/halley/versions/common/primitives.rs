@@ -5,6 +5,7 @@ use cookie_factory::{
     sequence::tuple as w_tuple,
     SerializeFn,
 };
+use indexmap::IndexMap;
 use nom::{
     combinator::{map, map_res, peek},
     multi::{length_count, length_data},
@@ -12,7 +13,7 @@ use nom::{
     sequence::tuple,
     IResult,
 };
-use std::{cmp::min, collections::HashMap, io::Write};
+use std::{cmp::min, io::Write};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -27,9 +28,9 @@ pub enum PosSizeError {
     InvalidSizeString,
 }
 
-pub fn h_hashmap(i: &[u8]) -> IResult<&[u8], HashMap<String, String>> {
+pub fn h_map(i: &[u8]) -> IResult<&[u8], IndexMap<String, String>> {
     length_count(le_u32, tuple((h_string, h_string)))(i).map(|(i, entries)| {
-        let mut map = HashMap::new();
+        let mut map = IndexMap::new();
         for (k, v) in entries {
             map.insert(k, v);
         }
@@ -37,14 +38,12 @@ pub fn h_hashmap(i: &[u8]) -> IResult<&[u8], HashMap<String, String>> {
     })
 }
 
-pub fn wh_hashmap<'a, W: Write + 'a>(
-    hashmap: &'a HashMap<String, String>,
-) -> impl SerializeFn<W> + 'a {
-    let entries = hashmap
+pub fn wh_map<'a, W: Write + 'a>(map: &'a IndexMap<String, String>) -> impl SerializeFn<W> + 'a {
+    let entries = map
         .iter()
         .map(|(k, v)| w_tuple((wh_string(k), wh_string(v))));
 
-    w_tuple((w_le_u32(hashmap.len() as u32), w_all(entries)))
+    w_tuple((w_le_u32(map.len() as u32), w_all(entries)))
 }
 
 pub fn h_pos_size(i: &[u8]) -> IResult<&[u8], (usize, usize)> {

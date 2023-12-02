@@ -387,6 +387,7 @@ dependencies = [
  "derive-new",
  "flate2",
  "image",
+ "indexmap",
  "json5",
  "libaes",
  "lz4",
@@ -440,6 +441,7 @@ checksum = "d530e1a18b1cb4c484e6e34556a0d948706958449fca0cab753d649f2bce3d1f"
 dependencies = [
  "equivalent",
  "hashbrown",
+ "serde",
 ]
 
 [[package]]

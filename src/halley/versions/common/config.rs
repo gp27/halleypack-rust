@@ -9,6 +9,7 @@ use cookie_factory::{
     sequence::tuple as wh_tuple,
     SerializeFn,
 };
+use indexmap::IndexMap;
 use nom::{
     combinator::{cond, map},
     multi::{length_count, length_data},
@@ -18,7 +19,7 @@ use nom::{
 };
 use num_derive::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, hash::Hash};
+use std::hash::Hash;
 
 #[derive(FromPrimitive, Serialize, Deserialize, ToPrimitive)]
 pub enum ConfigNodeType {
@@ -71,7 +72,7 @@ pub enum ConfigNode {
     Bool(bool),
 }
 
-pub type ConfigNodeMap = HashMap<String, ConfigNode>;
+pub type ConfigNodeMap = IndexMap<String, ConfigNode>;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ConfigFile {
@@ -173,10 +174,10 @@ fn h_confignode_layer(h_confignode_deep: ConfigNodeParser, i: &[u8]) -> IResult<
         a
     })
 }
-fn vec_to_map<K: Eq + Hash, V>(v: Vec<(K, V)>) -> HashMap<K, V> {
+fn vec_to_map<K: Eq + Hash, V>(v: Vec<(K, V)>) -> IndexMap<K, V> {
     v.into_iter()
         .map(|(k, v)| (k, v))
-        .collect::<HashMap<K, V>>()
+        .collect::<IndexMap<K, V>>()
 }
 
 pub fn wh_config_file<'a>(file: &'a ConfigFile) -> Box<dyn SerializeFn<Vec<u8>> + 'a> {

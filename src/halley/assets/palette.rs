@@ -1,17 +1,18 @@
-use std::{collections::HashMap, io::Cursor};
+use std::io::Cursor;
 
 use image::{Rgba, Rgba32FImage};
+use indexmap::IndexMap;
 
 pub struct Palette {
     swap_data: [i32; 256],
-    swap_color_to_index_map: HashMap<i32, i32>,
+    swap_color_to_index_map: IndexMap<i32, i32>,
 }
 
 impl Palette {
     fn new(image: &Rgba32FImage) -> Option<Self> {
         let mut palette = Palette {
             swap_data: [0; 256],
-            swap_color_to_index_map: HashMap::new(),
+            swap_color_to_index_map: IndexMap::new(),
         };
 
         let mut n = 1;

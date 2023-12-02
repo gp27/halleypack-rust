@@ -1,6 +1,7 @@
 use base64::{engine::general_purpose, Engine as _};
 use derivative::Derivative;
 use flate2::{read::ZlibDecoder, write::ZlibEncoder};
+use indexmap::IndexSet;
 use libaes::Cipher;
 use nom::{
     bytes::complete::{tag, take},
@@ -14,7 +15,6 @@ use nom::{
 use num::iter::RangeFrom;
 use std::{
     cmp::min,
-    collections::HashSet,
     io::{Read, Seek, Write},
     path::{Path, PathBuf},
 };
@@ -46,7 +46,7 @@ pub struct SDLSaveData {
     save_type: SaveDataType,
     dir: PathBuf,
     key: Option<String>,
-    corrupted_files: HashSet<String>,
+    corrupted_files: IndexSet<String>,
 }
 
 impl SDLSaveData {}

@@ -1,8 +1,8 @@
 use super::{
     super::common::{
         hpk::{HalleyPack, HpkAsset, HpkSection, HpkSectionUnpackable, Parsable, Writable},
-        primitives::{h_hashmap, h_pos_size, h_string},
-        primitives::{wh_hashmap, wh_pos_size, wh_string},
+        primitives::{h_map, h_pos_size, h_string},
+        primitives::{wh_map, wh_pos_size, wh_string},
     },
     animation::Animation,
     spritesheet::SpriteSheet,
@@ -22,6 +22,7 @@ use cookie_factory::{
     sequence::tuple as wh_tuple,
     SerializeFn,
 };
+use indexmap::IndexMap;
 use nom::{
     combinator::{map, map_res},
     multi::length_count,
@@ -30,7 +31,7 @@ use nom::{
     IResult,
 };
 use num_derive::{FromPrimitive, ToPrimitive};
-use std::{collections::HashMap, path::Path};
+use std::path::Path;
 
 pub struct HalleyPackV2020 {}
 
@@ -59,7 +60,7 @@ pub enum AssetTypeV2020 {
     MESHANIMATION,
     VARIABLETABLE,
 }
-pub type HpkPropertiesV2020 = HashMap<String, String>;
+pub type HpkPropertiesV2020 = IndexMap<String, String>;
 
 #[derive(Debug)]
 pub struct HpkSectionV2020
@@ -232,7 +233,7 @@ impl HpkAsset for HpkAssetV2020 {
 impl Parsable for HpkAssetV2020 {
     fn parse(i: &[u8]) -> IResult<&[u8], Self> {
         map(
-            tuple((h_string, h_pos_size, h_hashmap)),
+            tuple((h_string, h_pos_size, h_map)),
             |(name, (pos, size), properties)| HpkAssetV2020 {
                 name,
                 pos,
@@ -248,7 +249,7 @@ impl Writable for HpkAssetV2020 {
         let writer = wh_tuple((
             wh_string(&self.name),
             wh_pos_size(self.pos, self.size),
-            wh_hashmap(&self.properties),
+            wh_map(&self.properties),
         ));
         Box::new(writer)
     }

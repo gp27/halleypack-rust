@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::halley::versions::common::{
     hpk::{Parsable, Writable},
     primitives::{
@@ -13,6 +11,7 @@ use cookie_factory::{
     sequence::tuple as wh_tuple,
     SerializeFn,
 };
+use indexmap::IndexMap;
 use nom::{
     combinator::{cond, flat_map, map, peek},
     multi::length_count,
@@ -167,14 +166,14 @@ impl Writable for Sprite {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct SpriteIdx(HashMap<String, i32>);
+pub struct SpriteIdx(IndexMap<String, i32>);
 
 impl Parsable for SpriteIdx {
     fn parse(i: &[u8]) -> IResult<&[u8], Self> {
         map(
             length_count(h_var_u, tuple((h_var_string, h_var_i))),
             |entries| {
-                let mut map = HashMap::new();
+                let mut map = IndexMap::new();
                 for (k, v) in entries {
                     map.insert(k, v as i32);
                 }
