@@ -42,7 +42,7 @@ pub enum ConfigNodeType {
     Bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 #[serde(tag = "__node_type", content = "__node_value")]
 pub enum ConfigNode {
     Undefined,
@@ -58,7 +58,8 @@ pub enum ConfigNode {
     Int64(i64),
     EntityId(i64),
 
-    //#[serde(untagged)] //TODO: set untagged when https://github.com/dtolnay/serde-yaml/issues/361 is fixed
+    //TODO: set untagged when https://github.com/dtolnay/serde-yaml/issues/361 is fixed
+    #[serde(untagged)]
     Sequence(Vec<ConfigNode>),
     #[serde(untagged)]
     Map(ConfigNodeMap),
@@ -275,6 +276,7 @@ fn wh_confignode_layer<'a>(
 
 #[cfg(test)]
 mod tests {
+    use crate::halley::assets::serialization::{deserialize, serialize};
     use indexmap::indexmap;
     use serde::de::DeserializeOwned;
 
@@ -283,9 +285,9 @@ mod tests {
     fn serialize_and_deserialize<'a, T: Serialize + DeserializeOwned + std::fmt::Debug>(
         t: &'a T,
     ) -> T {
-        let str = serde_yaml::to_string(t).unwrap();
+        let str = serialize(t, None).unwrap();
 
-        let tt: T = serde_yaml::from_str(&str).unwrap();
+        let tt: T = deserialize(&str, None).unwrap();
         println!("{:?}\n{}\n{:?}", t, str, &tt);
         tt
     }
@@ -361,14 +363,33 @@ mod tests {
         ];
 
         nodes.iter().for_each(|n| {
-            assert_eq!(*n, serialize_and_deserialize(n));
+            let n = wrap_node(n.clone());
+            assert_eq!(n, serialize_and_deserialize(&n));
         });
 
         assert!(
-            match serialize_and_deserialize(&ConfigNode::Float(f32::NAN)) {
+            match unwrap_node(serialize_and_deserialize(&wrap_node(ConfigNode::Float(
+                f32::NAN
+            )))) {
                 ConfigNode::Float(f) => f.is_nan(),
                 _ => false,
             }
         )
+    }
+
+    fn wrap_node(node: ConfigNode) -> ConfigNode {
+        ConfigNode::Map(indexmap! {
+            format!("root") => node,
+        })
+    }
+
+    fn unwrap_node(node: ConfigNode) -> ConfigNode {
+        match node {
+            ConfigNode::Map(map) => match map.get("root") {
+                Some(node) => node.clone(),
+                None => ConfigNode::Undefined,
+            },
+            _ => ConfigNode::Undefined,
+        }
     }
 }

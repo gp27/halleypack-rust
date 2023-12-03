@@ -9,10 +9,10 @@ pub enum Format {
     Yaml,
 }
 
-static SERIALIZATION_FORMAT: Format = Format::Json5;
+static DEFAULT_FORMAT: Format = Format::Toml5;
 
 pub fn serialize<T: Serialize>(t: &T, f: Option<Format>) -> Result<String, anyhow::Error> {
-    match f.unwrap_or(SERIALIZATION_FORMAT) {
+    match f.unwrap_or(DEFAULT_FORMAT) {
         Format::Json5 => {
             let json = json5::to_string(t)?;
             jsonxf::pretty_print(&json).map_err(|e| anyhow!(e))
@@ -23,7 +23,7 @@ pub fn serialize<T: Serialize>(t: &T, f: Option<Format>) -> Result<String, anyho
 }
 
 pub fn deserialize<T: DeserializeOwned>(i: &str, f: Option<Format>) -> Result<T, anyhow::Error> {
-    match f.unwrap_or(SERIALIZATION_FORMAT) {
+    match f.unwrap_or(DEFAULT_FORMAT) {
         Format::Json5 => json5::from_str(i).map_err(|e| e.into()),
         Format::Toml5 => toml::from_str(i).map_err(|e| e.into()),
         Format::Yaml => serde_yaml::from_str(i).map_err(|e| e.into()),
@@ -31,7 +31,7 @@ pub fn deserialize<T: DeserializeOwned>(i: &str, f: Option<Format>) -> Result<T,
 }
 
 pub fn get_serialization_ext(f: Option<Format>) -> &'static str {
-    match f.unwrap_or(SERIALIZATION_FORMAT) {
+    match f.unwrap_or(DEFAULT_FORMAT) {
         Format::Json5 => ".json",
         Format::Toml5 => ".toml",
         Format::Yaml => ".yaml",
