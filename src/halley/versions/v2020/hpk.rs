@@ -135,7 +135,7 @@ impl HpkSectionUnpackable for HpkSectionV2020 {
             AssetTypeV2020::SPRITESHEET => ".sheet",
             AssetTypeV2020::ANIMATION => ".anim",
             AssetTypeV2020::CONFIG => ".config",
-            _ => ".ukn",
+            _ => "",
         }
     }
 

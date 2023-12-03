@@ -111,7 +111,7 @@ pub trait HpkAsset: Writable + Debug {
 
 pub trait HpkSectionUnpackable {
     fn get_unknown_file_type_ending(&self) -> &str {
-        ".ukn"
+        ""
     }
 
     fn get_file_name_extension(&self, _compression: Option<String>) -> &str {
@@ -137,7 +137,7 @@ pub trait HpkSectionUnpackable {
         let name = asset.name();
         let u_ext = self.get_unknown_file_type_ending();
         let ext = self.get_file_name_extension(asset.get_compression());
-        let final_ext = format!("{}{}.{}", u_ext, ext, serialization_ext);
+        let final_ext = format!("{}{}{}", u_ext, ext, serialization_ext);
         pathify(name, &final_ext)
     }
 
@@ -149,7 +149,7 @@ pub trait HpkSectionUnpackable {
     ) -> String {
         let u_ext = self.get_unknown_file_type_ending();
         let ext = self.get_file_name_extension(compression);
-        let final_ext = format!("{}{}.{}", u_ext, ext, serialization_ext);
+        let final_ext = format!("{}{}{}", u_ext, ext, serialization_ext);
         unpathify(filename, &final_ext)
     }
 }

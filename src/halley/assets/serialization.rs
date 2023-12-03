@@ -32,18 +32,19 @@ pub fn deserialize<T: DeserializeOwned>(i: &str, f: Option<Format>) -> Result<T,
 
 pub fn get_serialization_ext(f: Option<Format>) -> &'static str {
     match f.unwrap_or(SERIALIZATION_FORMAT) {
-        Format::Json5 => "json5",
-        Format::Toml5 => "toml",
-        Format::Yaml => "yaml",
+        Format::Json5 => ".json",
+        Format::Toml5 => ".toml",
+        Format::Yaml => ".yaml",
     }
 }
 
 pub fn get_format_from_ext(ext: &str) -> Option<Format> {
     match ext {
-        "json5" => Some(Format::Json5),
-        "toml" => Some(Format::Toml5),
-        "yaml" => Some(Format::Yaml),
-        "yml" => Some(Format::Yaml),
+        ".json" => Some(Format::Json5),
+        ".json5" => Some(Format::Json5),
+        ".toml" => Some(Format::Toml5),
+        ".yaml" => Some(Format::Yaml),
+        ".yml" => Some(Format::Yaml),
         _ => None,
     }
 }
@@ -55,10 +56,11 @@ pub fn get_serialization_ext_from_path(path: &Path) -> &'static str {
         .to_str()
         .unwrap_or_default();
     match ext {
-        "json5" => "json5",
-        "toml" => "toml",
-        "yaml" => "yaml",
-        "yml" => "yaml",
+        "json" => ".json",
+        "json5" => ".json",
+        "toml" => ".toml",
+        "yaml" => ".yaml",
+        "yml" => ".yaml",
         _ => "",
     }
 }

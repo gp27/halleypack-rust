@@ -150,8 +150,7 @@ impl HpkSectionUnpackable for HpkSectionV2023 {
             AssetTypeV2023::GAMEPROPERTIES => ".game",
             AssetTypeV2023::AUDIOOBJECT => ".audioobject",
             AssetTypeV2023::AUDIOEVENT => ".audioevent",
-            AssetTypeV2023::AUDIOCLIP | AssetTypeV2023::BINARY | AssetTypeV2023::TEXTURE => "",
-            _ => ".ukn",
+            _ => "",
         }
     }
 
