@@ -1,5 +1,10 @@
 use super::hpk_parse::parse_hpk;
-use crate::halley::assets::{compression, utils::pathify, utils::unpathify};
+use crate::halley::assets::{
+    compression,
+    serialization::{deserialize, get_serialization_ext, serialize, Format},
+    utils::pathify,
+    utils::unpathify,
+};
 use anyhow::anyhow;
 use cookie_factory::{SerializeFn, WriteContext};
 use derivative::Derivative;
@@ -25,7 +30,7 @@ pub trait HalleyPack: Writable + Debug {
     }
     fn sections(&self) -> &Vec<Box<dyn HpkSection>>;
     fn add_section(&mut self, section: Box<dyn HpkSection>);
-    fn get_asset_data(&self, asset: Box<&dyn HpkAsset>) -> Vec<u8>;
+    fn get_asset_data(&self, asset: &Box<&dyn HpkAsset>) -> Vec<u8>;
     fn data(&self) -> &[u8];
     fn add_data(&mut self, data: &[u8], compression: Option<String>) -> (usize, usize);
     // fn get_boxed(&self) -> Box<Self>;
@@ -53,7 +58,7 @@ impl HalleyPack for HalleyPackData {
         self.asset_db.push(section);
     }
 
-    fn get_asset_data(&self, asset: Box<&dyn HpkAsset>) -> Vec<u8> {
+    fn get_asset_data(&self, asset: &Box<&dyn HpkAsset>) -> Vec<u8> {
         let pos = asset.pos();
         let data = &self.data[pos..pos + asset.size()];
         match asset.get_asset_compression() {
@@ -120,28 +125,32 @@ pub trait HpkSectionUnpackable {
         // }
     }
 
-    fn modify_file_on_unpack(&self, i: &[u8]) -> Result<Vec<u8>, anyhow::Error> {
+    fn modify_file_on_unpack(&self, i: &[u8]) -> Result<(Vec<u8>, &str), anyhow::Error> {
+        Ok((i.into(), ""))
+    }
+
+    fn modify_file_on_repack(&self, i: &[u8], _ext: &str) -> Result<Vec<u8>, anyhow::Error> {
         Ok(i.into())
     }
 
-    fn modify_file_on_repack(&self, i: &[u8]) -> Result<Vec<u8>, anyhow::Error> {
-        Ok(i.into())
-    }
-
-    fn get_asset_filename(&self, asset: &dyn HpkAsset) -> String {
+    fn get_asset_filename(&self, asset: &dyn HpkAsset, serialization_ext: &str) -> String {
         let name = asset.name();
         let u_ext = self.get_unknown_file_type_ending();
         let ext = self.get_file_name_extension(asset.get_compression());
-        format!("{}{}", pathify(name, u_ext), ext)
+        let final_ext = format!("{}{}.{}", u_ext, ext, serialization_ext);
+        pathify(name, &final_ext)
     }
 
-    fn get_asset_name(&self, filename: &str, compression: Option<String>) -> String {
+    fn get_asset_name(
+        &self,
+        filename: &str,
+        serialization_ext: &str,
+        compression: Option<String>,
+    ) -> String {
         let u_ext = self.get_unknown_file_type_ending();
         let ext = self.get_file_name_extension(compression);
-        unpathify(filename, u_ext)
-            .strip_suffix(ext)
-            .unwrap()
-            .to_string()
+        let final_ext = format!("{}{}.{}", u_ext, ext, serialization_ext);
+        unpathify(filename, &final_ext)
     }
 }
 
@@ -159,29 +168,33 @@ pub trait Writable {
 pub fn unpack_transform<T: Parsable + Serialize, TT: Serialize>(
     i: &[u8],
     transform: Option<fn(T) -> TT>,
-) -> Result<Vec<u8>, anyhow::Error> {
+) -> Result<(Vec<u8>, &'static str), anyhow::Error> {
+    let format = None;
     let (_, t) = T::parse(i).map_err(|err| anyhow!(err.to_string()))?;
     let data = match transform {
-        Some(transform) => serde_yaml::to_string(&transform(t)),
-        None => serde_yaml::to_string(&t),
+        Some(transform) => serialize(&transform(t), format),
+        None => serialize(&t, format),
     }?
     .into_bytes();
 
-    Ok(data)
+    let ext = get_serialization_ext(format);
+
+    Ok((data, ext))
 }
 
 pub fn pack_transform<T: Writable + DeserializeOwned, TT: DeserializeOwned + Debug>(
     i: &[u8],
+    format: Option<Format>,
     transform: Option<fn(TT) -> T>,
 ) -> Result<Vec<u8>, anyhow::Error> {
     let str = std::str::from_utf8(i)?;
     let object = match transform {
         Some(transform) => {
-            let tt: TT = serde_yaml::from_str(str)?;
+            let tt: TT = deserialize(str, format)?;
             transform(tt)
         }
         None => {
-            let t: T = serde_yaml::from_str(str)?;
+            let t: T = deserialize(str, format)?;
             t
         }
     };

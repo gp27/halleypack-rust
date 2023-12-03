@@ -10,7 +10,10 @@ use super::{
     spritesheet::{SpriteResource, SpriteSheet},
 };
 use crate::halley::{
-    assets::property_file,
+    assets::{
+        property_file,
+        serialization::{get_format_from_ext, get_serialization_ext_from_path},
+    },
     versions::common::{
         config::ConfigFile,
         hpk::{
@@ -111,9 +114,14 @@ impl HpkSection for HpkSectionV2023 {
     ) -> Result<(), anyhow::Error> {
         let (config, data) = property_file::read_with_file_data::<ConfigNode>(path)?;
 
-        let data = self.modify_file_on_repack(&data)?;
+        let serialization_ext = get_serialization_ext_from_path(path);
+        let data = self.modify_file_on_repack(&data, serialization_ext)?;
 
-        let name = self.get_asset_name(relative_path.to_str().unwrap(), get_compression(&config));
+        let name = self.get_asset_name(
+            relative_path.to_str().unwrap(),
+            serialization_ext,
+            get_compression(&config),
+        );
 
         let mut asset = HpkAssetV2023 {
             name,
@@ -135,19 +143,22 @@ impl HpkSection for HpkSectionV2023 {
 impl HpkSectionUnpackable for HpkSectionV2023 {
     fn get_unknown_file_type_ending(&self) -> &str {
         match self.asset_type {
-            AssetTypeV2023::SPRITESHEET => ".sheet.yaml",
-            AssetTypeV2023::SPRITE => ".sprite.yaml",
-            AssetTypeV2023::ANIMATION => ".anim.yaml",
-            AssetTypeV2023::CONFIG => ".config.yaml",
-            AssetTypeV2023::GAMEPROPERTIES => ".game.yaml",
-            AssetTypeV2023::AUDIOOBJECT => ".audioobject.yaml",
-            AssetTypeV2023::AUDIOEVENT => ".audioevent.yaml",
+            AssetTypeV2023::SPRITESHEET => ".sheet",
+            AssetTypeV2023::SPRITE => ".sprite",
+            AssetTypeV2023::ANIMATION => ".anim",
+            AssetTypeV2023::CONFIG => ".config",
+            AssetTypeV2023::GAMEPROPERTIES => ".game",
+            AssetTypeV2023::AUDIOOBJECT => ".audioobject",
+            AssetTypeV2023::AUDIOEVENT => ".audioevent",
             AssetTypeV2023::AUDIOCLIP | AssetTypeV2023::BINARY | AssetTypeV2023::TEXTURE => "",
             _ => ".ukn",
         }
     }
 
-    fn modify_file_on_unpack<'a>(&self, i: &'a [u8]) -> Result<Vec<u8>, anyhow::Error> {
+    fn modify_file_on_unpack<'a>(
+        &self,
+        i: &'a [u8],
+    ) -> Result<(Vec<u8>, &'static str), anyhow::Error> {
         match self.asset_type {
             AssetTypeV2023::SPRITESHEET => unpack_transform::<SpriteSheet, SpriteSheet>(i, None),
             AssetTypeV2023::SPRITE => unpack_transform::<SpriteResource, SpriteResource>(i, None),
@@ -155,17 +166,23 @@ impl HpkSectionUnpackable for HpkSectionV2023 {
             AssetTypeV2023::CONFIG => {
                 unpack_transform::<ConfigFile, ConfigNode>(i, Some(|c| c.root))
             }
-            _ => Ok(i.into()),
+            _ => Ok((i.into(), "")),
         }
     }
 
-    fn modify_file_on_repack(&self, i: &[u8]) -> Result<Vec<u8>, anyhow::Error> {
+    fn modify_file_on_repack(&self, i: &[u8], ext: &str) -> Result<Vec<u8>, anyhow::Error> {
+        let format = get_format_from_ext(ext);
         match self.asset_type {
-            AssetTypeV2023::SPRITESHEET => pack_transform::<SpriteSheet, SpriteSheet>(i, None),
-            AssetTypeV2023::SPRITE => pack_transform::<SpriteResource, SpriteResource>(i, None),
-            AssetTypeV2023::ANIMATION => pack_transform::<Animation, Animation>(i, None),
+            AssetTypeV2023::SPRITESHEET => {
+                pack_transform::<SpriteSheet, SpriteSheet>(i, format, None)
+            }
+            AssetTypeV2023::SPRITE => {
+                pack_transform::<SpriteResource, SpriteResource>(i, format, None)
+            }
+            AssetTypeV2023::ANIMATION => pack_transform::<Animation, Animation>(i, format, None),
             AssetTypeV2023::CONFIG => pack_transform::<ConfigFile, ConfigNode>(
                 i,
+                format,
                 Some(|t| ConfigFile {
                     v: 3,
                     store_file_position: true,

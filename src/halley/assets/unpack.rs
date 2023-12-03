@@ -32,12 +32,13 @@ pub fn unpack_halley_pk(pack: &dyn HalleyPack, path: &Path) -> Result<(), anyhow
         create_dir_all(&section_path)?;
 
         for asset in section.assets().into_iter() {
-            let filename = section.get_asset_filename(*asset);
-            let file_path = section_path.join(&filename);
-            asset.serialize_properties(&file_path)?;
+            let data = pack.get_asset_data(&asset);
+            let (data, serialization_ext) = section.modify_file_on_unpack(&data)?;
 
-            let data = pack.get_asset_data(asset);
-            let data = section.modify_file_on_unpack(&data)?;
+            let filename = section.get_asset_filename(*asset, serialization_ext);
+            let file_path = section_path.join(filename);
+            //let file_path = section_path.join(&filename);
+            asset.serialize_properties(&file_path)?;
 
             let parent = file_path.parent().unwrap();
 

@@ -8,7 +8,10 @@ use super::{
     spritesheet::SpriteSheet,
 };
 use crate::halley::{
-    assets::property_file,
+    assets::{
+        property_file,
+        serialization::{get_format_from_ext, get_serialization_ext_from_path},
+    },
     versions::common::{
         config::{ConfigFile, ConfigNode},
         hpk::{
@@ -98,8 +101,13 @@ impl HpkSection for HpkSectionV2020 {
         relative_path: &Path,
     ) -> Result<(), anyhow::Error> {
         let (properties, data) = property_file::read_with_file_data::<HpkPropertiesV2020>(path)?;
+
+        let serialization_ext = get_serialization_ext_from_path(path);
+        let data = self.modify_file_on_repack(&data, serialization_ext)?;
+
         let name = self.get_asset_name(
             relative_path.to_str().unwrap(),
+            serialization_ext,
             properties.get("compression").map(|s| s.to_owned()),
         );
 
@@ -109,8 +117,6 @@ impl HpkSection for HpkSectionV2020 {
             size: 0,
             properties,
         };
-
-        let data = self.modify_file_on_repack(&data)?;
 
         let compression = asset.get_asset_compression();
 
@@ -126,30 +132,34 @@ impl HpkSection for HpkSectionV2020 {
 impl HpkSectionUnpackable for HpkSectionV2020 {
     fn get_unknown_file_type_ending(&self) -> &str {
         match self.asset_type {
-            AssetTypeV2020::SPRITESHEET => ".sheet.yaml",
-            AssetTypeV2020::ANIMATION => ".anim.yaml",
-            AssetTypeV2020::CONFIG => ".config.yaml",
+            AssetTypeV2020::SPRITESHEET => ".sheet",
+            AssetTypeV2020::ANIMATION => ".anim",
+            AssetTypeV2020::CONFIG => ".config",
             _ => ".ukn",
         }
     }
 
-    fn modify_file_on_unpack<'a>(&self, i: &'a [u8]) -> Result<Vec<u8>, anyhow::Error> {
+    fn modify_file_on_unpack<'a>(&self, i: &'a [u8]) -> Result<(Vec<u8>, &str), anyhow::Error> {
         match self.asset_type {
             AssetTypeV2020::SPRITESHEET => unpack_transform::<SpriteSheet, SpriteSheet>(i, None),
             AssetTypeV2020::ANIMATION => unpack_transform::<Animation, Animation>(i, None),
             AssetTypeV2020::CONFIG => {
                 unpack_transform::<ConfigFile, ConfigNode>(i, Some(|c| c.root))
             }
-            _ => return Ok(i.into()),
+            _ => return Ok((i.into(), "")),
         }
     }
 
-    fn modify_file_on_repack(&self, i: &[u8]) -> Result<Vec<u8>, anyhow::Error> {
+    fn modify_file_on_repack(&self, i: &[u8], ext: &str) -> Result<Vec<u8>, anyhow::Error> {
+        let format = get_format_from_ext(ext);
         match self.asset_type {
-            AssetTypeV2020::SPRITESHEET => pack_transform::<SpriteSheet, SpriteSheet>(i, None),
-            AssetTypeV2020::ANIMATION => pack_transform::<Animation, Animation>(i, None),
+            AssetTypeV2020::SPRITESHEET => {
+                pack_transform::<SpriteSheet, SpriteSheet>(i, format, None)
+            }
+            AssetTypeV2020::ANIMATION => pack_transform::<Animation, Animation>(i, format, None),
             AssetTypeV2020::CONFIG => pack_transform::<ConfigFile, ConfigNode>(
                 i,
+                format,
                 Some(|t| ConfigFile {
                     v: 2,
                     store_file_position: true,
