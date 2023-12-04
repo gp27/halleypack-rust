@@ -106,7 +106,7 @@ impl HpkSection for HpkSectionV2020 {
         let data = self.modify_file_on_repack(&data, serialization_ext)?;
 
         let name = self.get_asset_name(
-            relative_path.to_str().unwrap(),
+            relative_path,
             serialization_ext,
             properties.get("compression").map(|s| s.to_owned()),
         );

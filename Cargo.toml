@@ -1,6 +1,6 @@
 [package]
 name = "halleypack"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 
@@ -32,3 +32,4 @@ indexmap = { version = "2.1.0", features = ["serde"] }
 serde_yaml = "0.9.27"
 rayon = "1.8.0"
 jsonxf = "1.1.1"
+path-slash = "0.2.1"

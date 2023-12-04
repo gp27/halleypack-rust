@@ -11,6 +11,7 @@ use derivative::Derivative;
 use derive_new::new;
 use nom::IResult;
 use num_traits::FromPrimitive;
+use path_slash::PathExt as _;
 use serde::{de::DeserializeOwned, Serialize};
 use std::{fmt::Debug, path::Path};
 use thiserror::Error;
@@ -143,14 +144,14 @@ pub trait HpkSectionUnpackable {
 
     fn get_asset_name(
         &self,
-        filename: &str,
+        filename: &Path,
         serialization_ext: &str,
         compression: Option<String>,
     ) -> String {
         let u_ext = self.get_unknown_file_type_ending();
         let ext = self.get_file_name_extension(compression);
         let final_ext = format!("{}{}{}", u_ext, ext, serialization_ext);
-        unpathify(filename, &final_ext)
+        unpathify(&filename.to_slash().unwrap(), &final_ext)
     }
 }
 
