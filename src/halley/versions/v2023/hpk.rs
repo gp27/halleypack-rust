@@ -115,7 +115,7 @@ impl HpkSection for HpkSectionV2023 {
         let (config, data) = property_file::read_with_file_data::<ConfigNode>(path)?;
 
         let serialization_ext = get_serialization_ext_from_path(path);
-        let data = self.modify_file_on_repack(&data, serialization_ext)?;
+        let data = self.modify_data_on_repack(&data, serialization_ext)?;
 
         let name = self.get_asset_name(relative_path, serialization_ext);
 
@@ -150,7 +150,7 @@ impl HpkSectionUnpackable for HpkSectionV2023 {
         }
     }
 
-    fn modify_file_on_unpack<'a>(
+    fn modify_data_on_unpack<'a>(
         &self,
         i: &'a [u8],
     ) -> Result<(Vec<u8>, &'static str), anyhow::Error> {
@@ -168,7 +168,7 @@ impl HpkSectionUnpackable for HpkSectionV2023 {
         }
     }
 
-    fn modify_file_on_repack(&self, i: &[u8], ext: &str) -> Result<Vec<u8>, anyhow::Error> {
+    fn modify_data_on_repack(&self, i: &[u8], ext: &str) -> Result<Vec<u8>, anyhow::Error> {
         let format = get_format_from_ext(ext);
         match self.asset_type {
             AssetTypeV2023::SPRITESHEET => {

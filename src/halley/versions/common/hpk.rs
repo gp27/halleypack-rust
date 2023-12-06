@@ -115,11 +115,11 @@ pub trait HpkSectionUnpackable {
         ""
     }
 
-    fn modify_file_on_unpack(&self, i: &[u8]) -> Result<(Vec<u8>, &str), anyhow::Error> {
+    fn modify_data_on_unpack(&self, i: &[u8]) -> Result<(Vec<u8>, &str), anyhow::Error> {
         Ok((i.into(), ""))
     }
 
-    fn modify_file_on_repack(&self, i: &[u8], _ext: &str) -> Result<Vec<u8>, anyhow::Error> {
+    fn modify_data_on_repack(&self, i: &[u8], _ext: &str) -> Result<Vec<u8>, anyhow::Error> {
         Ok(i.into())
     }
 

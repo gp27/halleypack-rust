@@ -103,7 +103,7 @@ impl HpkSection for HpkSectionV2020 {
         let (properties, data) = property_file::read_with_file_data::<HpkPropertiesV2020>(path)?;
 
         let serialization_ext = get_serialization_ext_from_path(path);
-        let data = self.modify_file_on_repack(&data, serialization_ext)?;
+        let data = self.modify_data_on_repack(&data, serialization_ext)?;
 
         let name = self.get_asset_name(relative_path, serialization_ext);
 
@@ -135,7 +135,7 @@ impl HpkSectionUnpackable for HpkSectionV2020 {
         }
     }
 
-    fn modify_file_on_unpack<'a>(&self, i: &'a [u8]) -> Result<(Vec<u8>, &str), anyhow::Error> {
+    fn modify_data_on_unpack<'a>(&self, i: &'a [u8]) -> Result<(Vec<u8>, &str), anyhow::Error> {
         match self.asset_type {
             AssetTypeV2020::SPRITESHEET => unpack_transform::<SpriteSheet, SpriteSheet>(i, None),
             AssetTypeV2020::ANIMATION => unpack_transform::<Animation, Animation>(i, None),
@@ -146,7 +146,7 @@ impl HpkSectionUnpackable for HpkSectionV2020 {
         }
     }
 
-    fn modify_file_on_repack(&self, i: &[u8], ext: &str) -> Result<Vec<u8>, anyhow::Error> {
+    fn modify_data_on_repack(&self, i: &[u8], ext: &str) -> Result<Vec<u8>, anyhow::Error> {
         let format = get_format_from_ext(ext);
         match self.asset_type {
             AssetTypeV2020::SPRITESHEET => {

@@ -33,7 +33,7 @@ pub fn unpack_halley_pk(pack: &dyn HalleyPack, path: &Path) -> Result<(), anyhow
 
         for asset in section.assets().into_iter() {
             let data = pack.get_asset_data(&asset);
-            let (data, serialization_ext) = section.modify_file_on_unpack(&data)?;
+            let (data, serialization_ext) = section.modify_data_on_unpack(&data)?;
 
             let filename = section.get_asset_filename(*asset, serialization_ext);
             let file_path = section_path.join(filename);
