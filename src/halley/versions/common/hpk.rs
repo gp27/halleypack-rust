@@ -115,17 +115,6 @@ pub trait HpkSectionUnpackable {
         ""
     }
 
-    fn get_file_name_extension(&self, _compression: Option<String>) -> &str {
-        ""
-        // match compression {
-        //     Some(compression) => match compression.as_str() {
-        //         "png" => ".png",
-        //         _ => "",
-        //     },
-        //     None => "",
-        // }
-    }
-
     fn modify_file_on_unpack(&self, i: &[u8]) -> Result<(Vec<u8>, &str), anyhow::Error> {
         Ok((i.into(), ""))
     }
@@ -137,20 +126,13 @@ pub trait HpkSectionUnpackable {
     fn get_asset_filename(&self, asset: &dyn HpkAsset, serialization_ext: &str) -> String {
         let name = asset.name();
         let u_ext = self.get_unknown_file_type_ending();
-        let ext = self.get_file_name_extension(asset.get_compression());
-        let final_ext = format!("{}{}{}", u_ext, ext, serialization_ext);
+        let final_ext = format!("{}{}", u_ext, serialization_ext);
         pathify(name, &final_ext)
     }
 
-    fn get_asset_name(
-        &self,
-        filename: &Path,
-        serialization_ext: &str,
-        compression: Option<String>,
-    ) -> String {
+    fn get_asset_name(&self, filename: &Path, serialization_ext: &str) -> String {
         let u_ext = self.get_unknown_file_type_ending();
-        let ext = self.get_file_name_extension(compression);
-        let final_ext = format!("{}{}{}", u_ext, ext, serialization_ext);
+        let final_ext = format!("{}{}", u_ext, serialization_ext);
         unpathify(&filename.to_slash().unwrap(), &final_ext)
     }
 }

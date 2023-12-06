@@ -117,7 +117,7 @@ impl HpkSection for HpkSectionV2023 {
         let serialization_ext = get_serialization_ext_from_path(path);
         let data = self.modify_file_on_repack(&data, serialization_ext)?;
 
-        let name = self.get_asset_name(relative_path, serialization_ext, get_compression(&config));
+        let name = self.get_asset_name(relative_path, serialization_ext);
 
         let mut asset = HpkAssetV2023 {
             name,
@@ -161,6 +161,9 @@ impl HpkSectionUnpackable for HpkSectionV2023 {
             AssetTypeV2023::CONFIG => {
                 unpack_transform::<ConfigFile, ConfigNode>(i, Some(|c| c.root))
             }
+            // AssetTypeV2023::TEXTURE => {
+            //     //let compression = self.get
+            // },
             _ => Ok((i.into(), "")),
         }
     }
