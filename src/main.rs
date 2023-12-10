@@ -65,6 +65,9 @@ enum Commands {
 
         #[arg(short = 'o', long)]
         out_file: Option<PathBuf>,
+
+        #[arg(short = 's', long)]
+        secret: Option<String>,
     },
 }
 
@@ -102,11 +105,12 @@ fn main() {
         Commands::ReadSave {
             save_file,
             out_file,
+            secret,
         } => {
-            let data = load_save_data(&save_file, Some(SECRET));
+            let data = load_save_data(&save_file, secret.as_deref());
             println!(
                 "save data -> {:x?}",
-                &data[0..std::cmp::min(100, data.len())]
+                &data[0..std::cmp::min(4000, data.len())]
             );
         }
     };
