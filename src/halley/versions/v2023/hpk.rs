@@ -7,6 +7,7 @@ use super::{
         },
     },
     animation::Animation,
+    hlif::hlif_decoder,
     spritesheet::{SpriteResource, SpriteSheet},
 };
 use crate::halley::{
@@ -37,7 +38,10 @@ use nom::{
     IResult,
 };
 use num_derive::{FromPrimitive, ToPrimitive};
-use std::path::Path;
+use std::{
+    io::Cursor,
+    path::{Path, PathBuf},
+};
 
 pub struct HalleyPackV2023 {}
 
@@ -263,6 +267,33 @@ impl HpkAsset for HpkAssetV2023 {
 
     fn get_compression(&self) -> Option<String> {
         get_compression(&self.config)
+    }
+
+    fn modify_data_on_unpack(&self, i: &[u8]) -> Result<Vec<u8>, anyhow::Error> {
+        let compression = self.get_compression().unwrap_or_default();
+        let path = PathBuf::from(&self.name);
+        let ext = path.extension().unwrap().to_str().unwrap_or_default();
+
+        let format = if ext == "png" {
+            image::ImageFormat::Png
+        } else if ext == "qoi" {
+            image::ImageFormat::Qoi
+        } else {
+            return Ok(i.into());
+        };
+
+        let res = match compression.as_str() {
+            "hlif" => {
+                let img = hlif_decoder(i)?;
+                println!("img: {:?}", img);
+                let mut buf = Cursor::new(Vec::new());
+
+                img.write_to(&mut buf, format)?;
+                buf.into_inner()
+            }
+            _ => i.into(),
+        };
+        Ok(res)
     }
 }
 

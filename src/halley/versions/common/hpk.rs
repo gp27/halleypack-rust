@@ -100,7 +100,10 @@ where
     ) -> Result<(), anyhow::Error>;
 }
 
-pub trait HpkAsset: Writable + Debug {
+pub trait HpkAsset
+where
+    Self: Writable + Debug,
+{
     fn name(&self) -> &String;
     fn pos(&self) -> usize;
     fn size(&self) -> usize;
@@ -108,6 +111,13 @@ pub trait HpkAsset: Writable + Debug {
     fn serialize_properties(&self, filaname: &Path) -> Result<(), anyhow::Error>;
     fn get_asset_compression(&self) -> Option<String>;
     fn get_compression(&self) -> Option<String>;
+    fn modify_data_on_unpack(&self, i: &[u8]) -> Result<Vec<u8>, anyhow::Error> {
+        Ok(i.into())
+    }
+
+    fn modify_data_on_repack(&self, i: &[u8], _ext: &str) -> Result<Vec<u8>, anyhow::Error> {
+        Ok(i.into())
+    }
 }
 
 pub trait HpkSectionUnpackable {
