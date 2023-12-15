@@ -95,7 +95,7 @@ impl Parsable for Sequence {
             |(frames, name, id, is_loop, no_flip, fallback)| Sequence {
                 frames,
                 name,
-                id: id as i32,
+                id,
                 is_loop,
                 no_flip,
                 fallback,

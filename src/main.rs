@@ -91,7 +91,7 @@ fn main() {
             secret,
         } => {
             let pack = read_pack(&asset, pack_version, secret.as_deref());
-            write_pack(pack, &out_file)
+            write_pack(pack, &out_file, secret.as_deref())
         }
         Commands::Pack {
             pack_dir,
@@ -100,7 +100,7 @@ fn main() {
             secret,
         } => {
             let pack = pack_asset(&pack_dir, pack_version);
-            write_pack(pack, &out_file)
+            write_pack(pack, &out_file, secret.as_deref())
         }
         Commands::ReadSave {
             save_file,

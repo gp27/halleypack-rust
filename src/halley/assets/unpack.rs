@@ -29,10 +29,10 @@ pub fn unpack_halley_pk(pack: &dyn HalleyPack, path: &Path) -> Result<(), anyhow
         let section_path = &path.join(section_name);
 
         property_file::write(section_path, &map)?;
-        create_dir_all(&section_path)?;
+        create_dir_all(section_path)?;
 
         for asset in section.assets().into_iter() {
-            let data = pack.get_asset_data(&asset);
+            let data = pack.get_asset_data(*asset);
             let (data, serialization_ext) = section.modify_data_on_unpack(&data)?;
 
             let filename = section.get_asset_filename(*asset, serialization_ext);
@@ -51,7 +51,7 @@ pub fn unpack_halley_pk(pack: &dyn HalleyPack, path: &Path) -> Result<(), anyhow
         }
     }
 
-    return Ok(());
+    Ok(())
 }
 
 #[derive(Error, Debug)]
@@ -83,8 +83,8 @@ pub fn pack_halley_pk<Section: HpkSection + 'static>(
         Some(filename)
     });
 
-    if non_section_entry.is_some() {
-        return Err(PackError::InvalidFileInSections(non_section_entry.unwrap()).into());
+    if let Some(non_section_entry) = non_section_entry {
+        return Err(PackError::InvalidFileInSections(non_section_entry).into());
     }
 
     let mut pack = HalleyPackData::default();

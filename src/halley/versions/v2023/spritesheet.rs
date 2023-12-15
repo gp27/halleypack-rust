@@ -112,7 +112,7 @@ impl Parsable for Sprite {
             |(pivot, orig_pivot, size, coords, rotated, trim_border, slices)| Sprite {
                 pivot,
                 orig_pivot: (orig_pivot.0 as i32, orig_pivot.1 as i32),
-                size: (size.0 as f32, size.1 as f32),
+                size,
                 coords,
                 rotated,
                 trim_border: (

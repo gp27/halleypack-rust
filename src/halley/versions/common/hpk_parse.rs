@@ -73,12 +73,12 @@ pub fn get_encrypted_data(
 ) -> (Vec<u8>, [u8; 16]) {
     // TODO - remove empty secret check
     if secret.is_none() {
-        return (data.to_vec(), [0 as u8; 16]);
+        return (data.to_vec(), [0_u8; 16]);
     }
     let secret = secret.unwrap();
 
-    let mut iv = *iv.unwrap_or(&[0 as u8; 16]);
-    if iv == [0 as u8; 16] {
+    let mut iv = *iv.unwrap_or(&[0_u8; 16]);
+    if iv == [0_u8; 16] {
         iv = rand::random::<[u8; 16]>();
     }
 
@@ -93,8 +93,8 @@ pub fn get_encrypted_data(
 
 pub fn get_decrypted_data(data: &[u8], secret: Option<&str>, iv: Option<&[u8; 16]>) -> Vec<u8> {
     // TODO - remove empty secret check
-    let iv = iv.unwrap_or(&[0 as u8; 16]);
-    let has_crypt = *iv != [0 as u8; 16] && secret.is_some();
+    let iv = iv.unwrap_or(&[0_u8; 16]);
+    let has_crypt = *iv != [0_u8; 16] && secret.is_some();
     let secret = secret.unwrap_or("");
 
     if has_crypt {
@@ -145,7 +145,7 @@ impl Writable for HalleyPackData {
 
         let writer = wh_tuple((
             w_slice(IDENTIFIER),
-            w_slice([0 as u8; 16]),
+            w_slice([0_u8; 16]),
             w_le_u64(asset_db_start_pos as u64),
             w_le_u64(data_start_pos as u64),
             w_le_u64(asset_db_size as u64),

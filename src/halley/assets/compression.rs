@@ -21,7 +21,7 @@ pub fn decompress(data: &[u8], compression: &str) -> Vec<u8> {
         }
         "lz4" => {
             let (deflated_data, (_, size, _header)) =
-                tuple((tag(b"LZ4\0"), h_i32, take(0 as usize)))(data).unwrap();
+                tuple((tag(b"LZ4\0"), h_i32, take(0_usize)))(data).unwrap();
 
             lz4::block::decompress(deflated_data, Some(size))
                 .expect("Could not decompress LZ4 data!")

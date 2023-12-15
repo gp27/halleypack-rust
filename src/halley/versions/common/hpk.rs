@@ -25,13 +25,13 @@ pub trait HalleyPack: Writable + Debug {
         Self: Sized,
         Section: Parsable + HpkSection + 'static,
     {
-        let data = std::fs::read(&path).unwrap();
+        let data = std::fs::read(path).unwrap();
         let (_, pack) = parse_hpk::<Section>(&data, secret).unwrap();
         Ok(Box::new(pack))
     }
     fn sections(&self) -> &Vec<Box<dyn HpkSection>>;
     fn add_section(&mut self, section: Box<dyn HpkSection>);
-    fn get_asset_data(&self, asset: &Box<&dyn HpkAsset>) -> Vec<u8>;
+    fn get_asset_data(&self, asset: &dyn HpkAsset) -> Vec<u8>;
     fn data(&self) -> &[u8];
     fn add_data(&mut self, data: &[u8], compression: Option<String>) -> (usize, usize);
     // fn get_boxed(&self) -> Box<Self>;
@@ -59,7 +59,7 @@ impl HalleyPack for HalleyPackData {
         self.asset_db.push(section);
     }
 
-    fn get_asset_data(&self, asset: &Box<&dyn HpkAsset>) -> Vec<u8> {
+    fn get_asset_data(&self, asset: &dyn HpkAsset) -> Vec<u8> {
         let pos = asset.pos();
         let data = &self.data[pos..pos + asset.size()];
         match asset.get_asset_compression() {

@@ -136,7 +136,7 @@ fn h_confignode_layer(h_confignode_deep: ConfigNodeParser, i: &[u8]) -> IResult<
         vec_to_map,
     );
     le_u32(i).map(|(i, confignode_type)| {
-        let a = match num::FromPrimitive::from_u32(confignode_type) {
+        match num::FromPrimitive::from_u32(confignode_type) {
             Some(ConfigNodeType::Noop) => (i, ConfigNode::Noop),
             Some(ConfigNodeType::Undefined) => (i, ConfigNode::Undefined),
             Some(ConfigNodeType::Del) => (i, ConfigNode::Del),
@@ -170,9 +170,7 @@ fn h_confignode_layer(h_confignode_deep: ConfigNodeParser, i: &[u8]) -> IResult<
             }
             //Some(_) => (i, ConfigNode::Undefined), // throw err
             None => (i, ConfigNode::Undefined), // throw err
-        };
-        //println!("{:?} -> {:?}", confignode_type, a.1);
-        a
+        }
     })
 }
 fn vec_to_map<K: Eq + Hash, V>(v: Vec<(K, V)>) -> IndexMap<K, V> {
@@ -235,7 +233,7 @@ fn wh_confignode_layer<'a>(
             ConfigNodeType::Sequence,
             Box::new(wh_tuple((
                 w_le_u32(seq.len() as u32),
-                wh_all(seq.iter().map(|n| wh_confignode_deep(n))),
+                wh_all(seq.iter().map(wh_confignode_deep)),
             ))),
         ),
         ConfigNode::Float(f) => (ConfigNodeType::Float, Box::new(w_le_f32(*f))),
@@ -255,7 +253,7 @@ fn wh_confignode_layer<'a>(
             ConfigNodeType::DeltaSequence,
             Box::new(wh_tuple((
                 w_le_u32(seq.len() as u32),
-                wh_all(seq.iter().map(|n| wh_confignode_deep(n))),
+                wh_all(seq.iter().map(wh_confignode_deep)),
                 w_le_i32(*i),
             ))),
         ),
@@ -282,9 +280,7 @@ mod tests {
 
     use super::*;
 
-    fn serialize_and_deserialize<'a, T: Serialize + DeserializeOwned + std::fmt::Debug>(
-        t: &'a T,
-    ) -> T {
+    fn serialize_and_deserialize<T: Serialize + DeserializeOwned + std::fmt::Debug>(t: &T) -> T {
         let str = serialize(t, None).unwrap();
 
         let tt: T = deserialize(&str, None).unwrap();
@@ -302,13 +298,13 @@ mod tests {
             ConfigNode::Float(2.13134),
             ConfigNode::Float(f32::INFINITY),
             ConfigNode::Float(f32::NEG_INFINITY),
-            ConfigNode::String(format!("hello")),
-            ConfigNode::String(format!("true")),
-            ConfigNode::String(format!("false")),
-            ConfigNode::String(format!("1")),
-            ConfigNode::String(format!("2.13134")),
-            ConfigNode::String(format!(".inf")),
-            ConfigNode::String(format!(".nan")),
+            ConfigNode::String("hello".to_string()),
+            ConfigNode::String("true".to_string()),
+            ConfigNode::String("false".to_string()),
+            ConfigNode::String("1".to_string()),
+            ConfigNode::String("2.13134".to_string()),
+            ConfigNode::String(".inf".to_string()),
+            ConfigNode::String(".nan".to_string()),
             ConfigNode::Bool(true),
             ConfigNode::Int2((1, 2)),
             ConfigNode::Float2((1.0, 2.0)),
@@ -343,7 +339,7 @@ mod tests {
             ConfigNode::Int64(1),
             ConfigNode::Map(indexmap! {
                 format!("widget") => ConfigNode::Map(indexmap! {
-                    format!("class") => ConfigNode::String(format!("framedImage")),
+                    format!("class") => ConfigNode::String("framedImage".to_string()),
                     format!("scrollPos") => ConfigNode::Sequence(vec![
                         ConfigNode::Int(10),
                         ConfigNode::Int(40),

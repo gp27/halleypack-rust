@@ -135,14 +135,14 @@ impl HpkSectionUnpackable for HpkSectionV2020 {
         }
     }
 
-    fn modify_data_on_unpack<'a>(&self, i: &'a [u8]) -> Result<(Vec<u8>, &str), anyhow::Error> {
+    fn modify_data_on_unpack(&self, i: &[u8]) -> Result<(Vec<u8>, &str), anyhow::Error> {
         match self.asset_type {
             AssetTypeV2020::SPRITESHEET => unpack_transform::<SpriteSheet, SpriteSheet>(i, None),
             AssetTypeV2020::ANIMATION => unpack_transform::<Animation, Animation>(i, None),
             AssetTypeV2020::CONFIG => {
                 unpack_transform::<ConfigFile, ConfigNode>(i, Some(|c| c.root))
             }
-            _ => return Ok((i.into(), "")),
+            _ => Ok((i.into(), "")),
         }
     }
 

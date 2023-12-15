@@ -41,12 +41,12 @@ pub fn unpack_assets(src: &Path, dst: &Path, pack_version: PackVersion, secret: 
             fs::remove_dir_all(&dst_file).unwrap();
         }
         fs::create_dir_all(&dst_file).unwrap();
-        let pack = read_pack(&dat_file, pack_version, secret);
+        let pack = read_pack(dat_file, pack_version, secret);
         unpack_halley_pk(&*pack, &dst_file).unwrap();
     });
 }
 
-pub fn pack_assets(src: &Path, dst: &Path, pack_version: PackVersion, _secret: Option<&str>) {
+pub fn pack_assets(src: &Path, dst: &Path, pack_version: PackVersion, secret: Option<&str>) {
     let dat_folders = get_dat_folders(src);
     if !dst.exists() {
         panic!("Destination folder does not exist");
@@ -57,8 +57,8 @@ pub fn pack_assets(src: &Path, dst: &Path, pack_version: PackVersion, _secret: O
         // if dst_file.exists() {
         //     fs::remove_file(&dst_file).unwrap();
         // }
-        let pack = pack_asset(&dat_folder, pack_version);
-        write_pack(pack, &dst_file);
+        let pack = pack_asset(dat_folder, pack_version);
+        write_pack(pack, &dst_file, secret);
     });
 }
 
@@ -80,7 +80,7 @@ pub fn pack_asset(path: &Path, pack_version: PackVersion) -> Box<dyn HalleyPack>
     }
 }
 
-pub fn write_pack(pack: Box<dyn HalleyPack>, path: &Path) {
+pub fn write_pack(pack: Box<dyn HalleyPack>, path: &Path, secret: Option<&str>) {
     let mut writer = BufWriter::new(fs::File::create(path).unwrap());
     let buf = vec![];
     let res = pack.write()(WriteContext {

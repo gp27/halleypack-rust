@@ -7,7 +7,7 @@ use std::{
 
 pub static EXT: &str = ".pro.toml";
 
-pub fn read_with_file_data<'a, T: DeserializeOwned + std::fmt::Debug>(
+pub fn read_with_file_data<T: DeserializeOwned + std::fmt::Debug>(
     asset_path: &Path,
 ) -> Result<(T, Vec<u8>), anyhow::Error> {
     let props: T = read(asset_path)?;

@@ -150,9 +150,9 @@ pub fn var_u64(is_signed: bool) -> impl Fn(&[u8]) -> IResult<&[u8], (u64, bool)>
             let mut v: u64 = 0;
             let mut sign = false;
 
-            for i in 0..n_bytes {
+            for byte in vec.iter().take(n_bytes) {
                 let byte_mask: u64 = (1 << bits_available) - 1;
-                v |= ((u64::from(vec[i])) & byte_mask) << bits_read;
+                v |= ((u64::from(*byte)) & byte_mask) << bits_read;
                 bits_read += bits_available;
                 bits_available = 8;
             }
@@ -179,16 +179,13 @@ pub fn w_var_u64(is_signed: Option<bool>, v: u64) -> impl SerializeFn<Vec<u8>> {
     };
 
     let n_bytes = std::cmp::min((n_bits - 1) / 7, 8) + 1;
-    let mut bytes = vec![0 as u8; 9];
+    let mut bytes = vec![0_u8; 9];
 
     let mut to_write = v;
-    match is_signed {
-        Some(sign) => {
-            let sign_pos = ((n_bytes as i32) * 7 + (if n_bytes == 9 { 0 } else { -1 })) as usize;
-            let sign = if sign { 1 } else { 0 };
-            to_write |= sign << sign_pos;
-        }
-        None => {}
+    if let Some(sign) = is_signed {
+        let sign_pos = ((n_bytes as i32) * 7 + (if n_bytes == 9 { 0 } else { -1 })) as usize;
+        let sign = if sign { 1 } else { 0 };
+        to_write |= sign << sign_pos;
     }
 
     let header_bits = n_bytes;
@@ -200,7 +197,7 @@ pub fn w_var_u64(is_signed: Option<bool>, v: u64) -> impl SerializeFn<Vec<u8>> {
 
     while bits_to_write > 0 {
         let n_bits = std::cmp::min(bits_to_write, bits_available);
-        let mask = ((1 as u64) << bits_available) - 1;
+        let mask = ((1_u64) << bits_available) - 1;
         bytes[pos] |= (to_write & mask) as u8;
         to_write >>= n_bits;
         bits_available = 8;
@@ -229,7 +226,7 @@ fn peek_var_n_bytes(i: &[u8]) -> IResult<&[u8], usize> {
             6
         } else if header & 0xFE != 0xFE {
             7
-        } else if header & 0xFF != 0xFF {
+        } else if header != 0xFF {
             8
         } else {
             9

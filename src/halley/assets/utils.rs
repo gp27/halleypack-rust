@@ -5,10 +5,10 @@ use std::{
 
 pub fn pathify(name: &str, ext: &str) -> String {
     let mut filename = format!("{}{}", name, ext).to_string();
-    if !filename.contains(".") {
+    if !filename.contains('.') {
         filename = format!("{}.unk", filename).to_string();
     }
-    filename.replace(":", "___..___")
+    filename.replace(':', "___..___")
 }
 
 pub fn unpathify(name: &str, ext: &str) -> String {

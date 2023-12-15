@@ -150,10 +150,7 @@ impl HpkSectionUnpackable for HpkSectionV2023 {
         }
     }
 
-    fn modify_data_on_unpack<'a>(
-        &self,
-        i: &'a [u8],
-    ) -> Result<(Vec<u8>, &'static str), anyhow::Error> {
+    fn modify_data_on_unpack(&self, i: &[u8]) -> Result<(Vec<u8>, &'static str), anyhow::Error> {
         match self.asset_type {
             AssetTypeV2023::SPRITESHEET => unpack_transform::<SpriteSheet, SpriteSheet>(i, None),
             AssetTypeV2023::SPRITE => unpack_transform::<SpriteResource, SpriteResource>(i, None),
