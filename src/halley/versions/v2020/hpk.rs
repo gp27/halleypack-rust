@@ -116,7 +116,7 @@ impl HpkSection for HpkSectionV2020 {
 
         let compression = asset.get_asset_compression();
 
-        let (pos, size) = pack.add_data(&data, compression);
+        let (pos, size) = pack.add_data(data, compression);
 
         asset.set_pos_size(pos, size);
 

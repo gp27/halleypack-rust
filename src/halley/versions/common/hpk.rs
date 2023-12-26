@@ -33,7 +33,7 @@ pub trait HalleyPack: Writable + Debug {
     fn add_section(&mut self, section: Box<dyn HpkSection>);
     fn get_asset_data(&self, asset: &dyn HpkAsset) -> Vec<u8>;
     fn data(&self) -> &[u8];
-    fn add_data(&mut self, data: &[u8], compression: Option<String>) -> (usize, usize);
+    fn add_data(&mut self, data: Vec<u8>, compression: Option<String>) -> (usize, usize);
     // fn get_boxed(&self) -> Box<Self>;
 }
 
@@ -72,10 +72,10 @@ impl HalleyPack for HalleyPackData {
         &self.data
     }
 
-    fn add_data(&mut self, data: &[u8], compression: Option<String>) -> (usize, usize) {
+    fn add_data(&mut self, data: Vec<u8>, compression: Option<String>) -> (usize, usize) {
         let data = match compression {
-            Some(compression) => compression::compress(data, &compression),
-            None => data.to_vec(),
+            Some(compression) => compression::compress(&data, &compression),
+            None => data,
         };
         let pos = self.data.len();
         self.data.extend_from_slice(&data);
