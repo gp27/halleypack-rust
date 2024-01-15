@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     fs,
     io::{BufWriter, Write},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 pub mod assets;
@@ -28,22 +28,41 @@ pub enum PackVersion {
     V2023,
 }
 
-pub fn unpack_assets(src: &Path, dst: &Path, pack_version: PackVersion, secret: Option<&str>) {
+pub fn unpack_assets(
+    src: &Path,
+    dst: &Path,
+    pack_version: PackVersion,
+    secret: Option<&str>,
+) -> impl rayon::iter::ParallelIterator<Item = PathBuf> {
     let dat_files = get_dat_files(src);
     if !dst.exists() && !dat_files.is_empty() {
         fs::create_dir_all(dst).unwrap();
     }
 
-    dat_files.par_iter().for_each(|dat_file| {
+    let dst = dst.to_owned();
+    let secret = secret.map(|s| s.to_owned());
+
+    dat_files.into_par_iter().map(move |dat_file| {
         let filename = dat_file.file_name().unwrap().to_str().unwrap();
         let dst_file = dst.join(filename);
         if dst_file.exists() {
             fs::remove_dir_all(&dst_file).unwrap();
         }
         fs::create_dir_all(&dst_file).unwrap();
-        let pack = read_pack(dat_file, pack_version, secret);
+        let pack = read_pack(&dat_file, pack_version, secret.as_deref());
         unpack_halley_pk(&*pack, &dst_file).unwrap();
-    });
+        dat_file
+    })
+}
+
+pub fn test() {
+    unpack_assets(
+        "/banana".as_ref(),
+        "/rama".as_ref(),
+        PackVersion::V2020,
+        None,
+    )
+    .for_each(|x| {});
 }
 
 pub fn pack_assets(src: &Path, dst: &Path, pack_version: PackVersion, secret: Option<&str>) {

@@ -16,7 +16,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use std::{fmt::Debug, path::Path};
 use thiserror::Error;
 
-pub trait HalleyPack: Writable + Debug {
+pub trait HalleyPack: Writable + Debug + Sync {
     fn load<Section>(
         path: &Path,
         secret: Option<&str>,
@@ -34,6 +34,7 @@ pub trait HalleyPack: Writable + Debug {
     fn get_asset_data(&self, asset: &dyn HpkAsset) -> Vec<u8>;
     fn data(&self) -> &[u8];
     fn add_data(&mut self, data: Vec<u8>, compression: Option<String>) -> (usize, usize);
+    fn add_asset(&mut self, asset: &mut dyn HpkAsset, data: Vec<u8>);
     // fn get_boxed(&self) -> Box<Self>;
 }
 
@@ -81,11 +82,17 @@ impl HalleyPack for HalleyPackData {
         self.data.extend_from_slice(&data);
         (pos, data.len())
     }
+
+    fn add_asset(&mut self, asset: &mut dyn HpkAsset, data: Vec<u8>) {
+        let compression = asset.get_asset_compression();
+        let (pos, size) = self.add_data(data, compression);
+        asset.set_pos_size(pos, size);
+    }
 }
 
 pub trait HpkSection
 where
-    Self: HpkSectionUnpackable + Writable + Debug,
+    Self: HpkSectionUnpackable + Writable + Debug + Sync + Send,
 {
     fn new(asset_type: i32) -> Result<Self, anyhow::Error>
     where
@@ -98,9 +105,14 @@ where
         path: &Path,
         relative_path: &Path,
     ) -> Result<(), anyhow::Error>;
+    fn make_asset(
+        &self,
+        path: &Path,
+        relative_path: &Path,
+    ) -> Result<(Box<dyn HpkAsset>, Vec<u8>), anyhow::Error>;
 }
 
-pub trait HpkAsset: Writable + Debug {
+pub trait HpkAsset: Writable + Debug + Send + Sync {
     fn name(&self) -> &String;
     fn pos(&self) -> usize;
     fn size(&self) -> usize;

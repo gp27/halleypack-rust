@@ -94,6 +94,29 @@ impl HpkSection for HpkSectionV2020 {
             .collect()
     }
 
+    fn make_asset(
+        &self,
+        path: &Path,
+        relative_path: &Path,
+    ) -> Result<(Box<dyn HpkAsset>, Vec<u8>), anyhow::Error> {
+        let (properties, data) = property_file::read_with_file_data::<HpkPropertiesV2020>(path)?;
+        let serialization_ext = get_serialization_ext_from_path(path);
+        let data = self.modify_data_on_repack(&data, serialization_ext)?;
+
+        let name = self.get_asset_name(relative_path, serialization_ext);
+
+        let asset = HpkAssetV2020 {
+            name,
+            pos: 0,
+            size: 0,
+            properties,
+        };
+
+        self.assets.push(asset);
+
+        Ok((Box::new(asset), data))
+    }
+
     fn add_asset(
         &mut self,
         pack: &mut dyn HalleyPack,
@@ -114,12 +137,7 @@ impl HpkSection for HpkSectionV2020 {
             properties,
         };
 
-        let compression = asset.get_asset_compression();
-
-        let (pos, size) = pack.add_data(data, compression);
-
-        asset.set_pos_size(pos, size);
-
+        pack.add_asset(&mut asset, data);
         self.assets.push(asset);
         Ok(())
     }

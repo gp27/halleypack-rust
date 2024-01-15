@@ -106,6 +106,28 @@ impl HpkSection for HpkSectionV2023 {
             .collect()
     }
 
+    fn make_asset(
+        &self,
+        path: &Path,
+        relative_path: &Path,
+    ) -> Result<(Box<dyn HpkAsset>, Vec<u8>), anyhow::Error> {
+        let (config, data) = property_file::read_with_file_data::<ConfigNode>(path)?;
+        let serialization_ext = get_serialization_ext_from_path(path);
+        let data = self.modify_data_on_repack(&data, serialization_ext)?;
+
+        let name = self.get_asset_name(relative_path, serialization_ext);
+
+        let asset = HpkAssetV2023 {
+            name,
+            pos: 0,
+            size: 0,
+            config,
+        };
+        self.assets.push(asset);
+
+        Ok((Box::new(asset), data))
+    }
+
     fn add_asset(
         &mut self,
         pack: &mut dyn HalleyPack,
@@ -126,11 +148,7 @@ impl HpkSection for HpkSectionV2023 {
             config,
         };
 
-        let compression = asset.get_asset_compression();
-        let (pos, size) = pack.add_data(data, compression);
-
-        asset.set_pos_size(pos, size);
-
+        pack.add_asset(&mut asset, data);
         self.assets.push(asset);
         Ok(())
     }

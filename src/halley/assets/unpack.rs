@@ -2,10 +2,11 @@ use super::property_file;
 use crate::halley::versions::common::hpk::{HalleyPack, HalleyPackData, HpkSection};
 use anyhow::anyhow;
 use indexmap::IndexMap;
+use rayon::prelude::*;
 use std::{
     fs::{create_dir_all, File},
     io::Write,
-    path::Path,
+    path::{Path, PathBuf},
 };
 use thiserror::Error;
 use walkdir::WalkDir;
@@ -31,7 +32,7 @@ pub fn unpack_halley_pk(pack: &dyn HalleyPack, path: &Path) -> Result<(), anyhow
         property_file::write(section_path, &map)?;
         create_dir_all(section_path)?;
 
-        for asset in section.assets().into_iter() {
+        section.assets().into_par_iter().try_for_each(|asset| {
             let data = pack.get_asset_data(*asset);
             let (data, serialization_ext) = section.modify_data_on_unpack(&data)?;
 
@@ -48,7 +49,8 @@ pub fn unpack_halley_pk(pack: &dyn HalleyPack, path: &Path) -> Result<(), anyhow
 
             let mut file = File::create(&file_path)?;
             file.write_all(&data)?;
-        }
+            Ok::<(), anyhow::Error>(())
+        })?;
     }
 
     Ok(())
@@ -91,6 +93,8 @@ pub fn pack_halley_pk<Section: HpkSection + 'static>(
 
     let mut index = 0;
 
+    let mut section_filenames = vec![];
+
     loop {
         let section_name = format!("{}{}", SECTION_PREFIX, index);
         let section_filename = path.join(section_name);
@@ -99,38 +103,50 @@ pub fn pack_halley_pk<Section: HpkSection + 'static>(
             break;
         }
 
-        let section_props: SectionProps = property_file::read(section_filename.as_path())?;
-        let section_type = *section_props
-            .get("asset_type")
-            .ok_or(PackError::MissingAssetType(index))?;
-
-        let mut section = Section::new(section_type)?;
-
-        let paths = WalkDir::new(&section_filename)
-            .follow_links(false)
-            .into_iter()
-            .filter_map(|e| {
-                let e = e.ok()?;
-                let path = e.path();
-
-                if e.file_type().is_file() && !path.to_str().unwrap().ends_with(property_file::EXT)
-                {
-                    return Some(path.to_path_buf());
-                }
-                None
-            });
-
-        for file_path in paths {
-            if file_path.is_dir() {
-                continue;
-            }
-
-            let relative_path = file_path.strip_prefix(&section_filename)?;
-            section.add_asset(&mut pack, file_path.as_path(), relative_path)?;
-        }
-        pack.add_section(Box::new(section));
-
+        section_filenames.push(section_filename);
         index += 1;
     }
+
+    section_filenames
+        .par_iter()
+        .try_for_each(|section_filename| {
+            let section_props: SectionProps = property_file::read(section_filename)?;
+            let section_type = *section_props
+                .get("asset_type")
+                .ok_or(PackError::MissingAssetType(index))?;
+
+            let mut section = Section::new(section_type)?;
+
+            let paths: Vec<PathBuf> = WalkDir::new(&section_filename)
+                .follow_links(false)
+                .into_iter()
+                .filter_map(|e| {
+                    let e = e.ok()?;
+                    let path = e.path();
+
+                    if e.file_type().is_file()
+                        && !path.to_str().unwrap().ends_with(property_file::EXT)
+                    {
+                        return Some(path.to_path_buf());
+                    }
+                    None
+                })
+                .collect();
+
+            paths.par_iter().try_for_each(|file_path| {
+                let relative_path = file_path.strip_prefix(&section_filename)?;
+                section.add_asset(&mut pack, file_path, relative_path)
+            })?;
+
+            // for file_path in paths {
+            //     let relative_path = file_path.strip_prefix(&section_filename)?;
+            //     let (asset, data) = section.make_asset(&file_path, relative_path)?;
+            //     //pack.add_asset(&mut *asset, data);
+            //     section.add_asset(&mut pack, file_path.as_path(), relative_path)?;
+            // }
+            pack.add_section(Box::new(section));
+            Ok::<(), anyhow::Error>(())
+        })?;
+
     Ok(Box::new(pack))
 }
